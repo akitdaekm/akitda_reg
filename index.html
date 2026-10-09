@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Kerala IT Dealers Association General Body 2026 - Registration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/qrcode.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #qrcode img, #qrcode canvas { margin: auto; }
+        @media print {
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area {
+                position: fixed; left: 0; top: 0; width: 60mm; height: 59.8mm;
+                display: flex !important; flex-direction: column; justify-content: center; align-items: center;
+            }
+            #print-qrcode-container canvas { width: 30mm !important; height: 30mm !important; }
+            #print-details { font-size: 10pt !important; margin-top: 1.5mm; text-align: center; }
+        }
+        @page { size: 60mm 60mm; margin: 0; }
+    </style>
+</head>
+<body class="bg-slate-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Top Links -->
+    <div class="w-full max-w-2xl flex justify-between items-center mb-2 px-1">
+        <a href="/" class="text-xs font-semibold text-slate-600 hover:text-orange-600 transition">← Back to Main Hub</a>
+        <div class="flex gap-2 text-xs">
+            <a href="/scan" target="_blank" class="text-orange-600 font-semibold hover:underline">⚡ Scanner Station</a>
+            <span class="text-slate-300">|</span>
+            <a href="/viewer" target="_blank" class="text-blue-600 font-semibold hover:underline">📊 Attendance Viewer</a>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-2xl mx-auto border border-slate-200">
+
+        <!-- Form View -->
+        <div id="form-view">
+            <div class="text-center mb-6">
+                <img src="/static/akitda-logo.png" alt="AKITDA Logo" class="mx-auto mb-3 h-20" onerror="this.src='akitda-logo.png'">
+                <div class="inline-block bg-orange-500 text-slate-950 font-bold text-xs px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-2">
+                    📅 Event Date: 10th December 2026
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight">
+                    <span class="text-orange-500">All Kerala IT Dealers Association</span>
+                    <span class="block text-slate-900 text-xl sm:text-2xl mt-1">General Body 2026</span>
+                </h1>
+                <p class="text-slate-500 mt-1 text-sm">Official Delegate Registration • 10th December 2026</p>
+            </div>
+
+            <!-- Auto-complete Search Box -->
+            <div class="mb-5 p-3.5 bg-orange-50 border border-orange-200 rounded-xl">
+                <label class="block text-xs font-bold uppercase tracking-wider text-orange-900 mb-1">
+                    🔍 Existing AKITDA Member Auto-Fill
+                </label>
+                <div class="relative">
+                    <input type="text" id="memberSearch" oninput="searchMembers(this.value)" placeholder="Type company or person name from member list..." 
+                           class="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                    <div id="searchResults" class="hidden absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-52 overflow-y-auto divide-y divide-slate-100"></div>
+                </div>
+                <p class="text-[11px] text-orange-700 mt-1">Select from the 193 verified AKITDA directory to auto-fill.</p>
+            </div>
+
+            <form id="registrationForm" onsubmit="handleRegistration(event)" class="space-y-4">
+                <div>
+                    <label for="fullName" class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                    <input type="text" id="fullName" name="fullName" required placeholder="Delegate Full Name" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div>
+                    <label for="company" class="block text-xs font-semibold text-slate-700 mb-1">Company / Firm Name *</label>
+                    <input type="text" id="company" name="company" required placeholder="Business / Firm Name" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="designation" class="block text-xs font-semibold text-slate-700 mb-1">Designation *</label>
+                        <select id="designation" name="designation" required class="w-full px-3 py-2 border border-slate-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="Member" selected>Member</option>
+                            <option value="State Executive Member">State Executive Member</option>
+                            <option value="Distributor">Distributor</option>
+                            <option value="Vendor">Vendor</option>
+                            <option value="Guest">Guest</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="district" class="block text-xs font-semibold text-slate-700 mb-1">District *</label>
+                        <select id="district" name="district" required class="w-full px-3 py-2 border border-slate-300 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                            <option value="Ernakulam" selected>Ernakulam</option>
+                            <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                            <option value="Kollam">Kollam</option>
+                            <option value="Pathanamthitta">Pathanamthitta</option>
+                            <option value="Alappuzha">Alappuzha</option>
+                            <option value="Kottayam">Kottayam</option>
+                            <option value="Idukki">Idukki</option>
+                            <option value="Thrissur">Thrissur</option>
+                            <option value="Palakkad">Palakkad</option>
+                            <option value="Malappuram">Malappuram</option>
+                            <option value="Kozhikode">Kozhikode</option>
+                            <option value="Wayanad">Wayanad</option>
+                            <option value="Kannur">Kannur</option>
+                            <option value="Kasaragod">Kasaragod</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="phone" class="block text-xs font-semibold text-slate-700 mb-1">Phone Number *</label>
+                        <input type="tel" id="phone" name="phone" required placeholder="10-digit mobile number" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-xs font-semibold text-slate-700 mb-1">Email (Optional)</label>
+                        <input type="email" id="email" name="email" placeholder="email@address.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="submitButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-200">
+                        Generate Official Entry Pass
+                    </button>
+                </div>
+            </form>
+            <p id="statusMessage" class="text-center mt-3 font-medium text-sm hidden"></p>
+        </div>
+
+        <!-- Result View -->
+        <div id="qr-result-view" class="hidden text-center space-y-6">
+            <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+                <h2 class="text-2xl font-bold">Registration Successful!</h2>
+                <p class="text-xs text-emerald-700 mt-1">Your official entry pass has been generated and recorded.</p>
+            </div>
+
+            <div id="passCard" class="bg-white border-2 border-slate-300 rounded-2xl p-6 max-w-sm mx-auto shadow-md text-left">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <img src="/static/akitda-logo.png" class="h-8" onerror="this.src='akitda-logo.png'">
+                        <div>
+                            <div class="text-xs font-bold text-slate-800">AKITDA</div>
+                            <div class="text-[10px] text-slate-500">General Body 2026 • 10 Dec 2026</div>
+                        </div>
+                    </div>
+                    <span id="passIdBadge" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700">AK-000000</span>
+                </div>
+                <div id="qrcode" class="p-3 bg-white border rounded-xl flex justify-center mb-4"></div>
+                <div class="space-y-1 text-center">
+                    <h3 id="resName" class="text-lg font-bold text-slate-900">Name</h3>
+                    <p id="resCompany" class="text-sm font-semibold text-slate-700">Company</p>
+                    <p id="resDesig" class="text-xs inline-block px-2.5 py-0.5 bg-orange-100 text-orange-800 font-bold rounded-full">Member</p>
+                    <p id="resDistPhone" class="text-xs text-slate-500 pt-1">District • Phone</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-3">
+                <button id="thermalPrintBtn" onclick="printBadge()" class="bg-orange-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-orange-700 transition text-sm flex items-center gap-1.5 shadow">
+                    <span>🖨️ Print 60mm Thermal Badge</span>
+                </button>
+                <button id="shareBtn" onclick="sharePass()" class="bg-emerald-600 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-emerald-700 transition text-sm flex items-center gap-1.5 shadow">
+                    <span>📱 Share Pass (WhatsApp)</span>
+                </button>
+                <button id="registerAnotherBtn" onclick="resetForm()" class="bg-slate-700 text-white font-bold py-2.5 px-4 rounded-lg hover:bg-slate-800 transition text-sm shadow">
+                    ➕ Register Another
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Thermal Print Area -->
+    <div id="print-area" class="hidden">
+        <div id="print-qrcode-container" class="text-center"></div>
+        <div id="print-details" class="text-center font-sans"></div>
+    </div>
+
+    <script>
+        let currentReg = null;
+
+        async function searchMembers(query) {
+            const results = document.getElementById('searchResults');
+            if (!query || query.trim().length < 2) {
+                results.classList.add('hidden');
+                return;
+            }
+            try {
+                const res = await fetch(`/api/members?q=${encodeURIComponent(query)}&limit=10`);
+                const data = await res.json();
+                if (data.members && data.members.length > 0) {
+                    results.innerHTML = data.members.map(m => `
+                        <div onclick="selectMember('${escapeStr(m.name)}', '${escapeStr(m.company)}', '${escapeStr(m.phone)}', '${escapeStr(m.district)}')" class="p-2.5 hover:bg-orange-50 cursor-pointer transition text-left">
+                            <div class="font-bold text-slate-900 text-sm">${m.company}</div>
+                            <div class="text-xs text-slate-600">${m.name} • 📞 ${m.phone}</div>
+                        </div>
+                    `).join('');
+                    results.classList.remove('hidden');
+                } else {
+                    results.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function escapeStr(s) {
+            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function selectMember(name, company, phone, district) {
+            document.getElementById('fullName').value = name;
+            document.getElementById('company').value = company;
+            document.getElementById('phone').value = phone;
+            if (district) document.getElementById('district').value = district;
+            document.getElementById('searchResults').classList.add('hidden');
+            document.getElementById('memberSearch').value = `${company} (${name})`;
+        }
+
+        async function handleRegistration(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitButton');
+            const statusMsg = document.getElementById('statusMessage');
+            btn.disabled = true;
+            btn.textContent = 'Saving Registration...';
+
+            const payload = {
+                name: document.getElementById('fullName').value.trim(),
+                company: document.getElementById('company').value.trim(),
+                designation: document.getElementById('designation').value.trim(),
+                district: document.getElementById('district').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                email: document.getElementById('email').value.trim()
+            };
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    currentReg = data.registration;
+                    showPassView(currentReg);
+                } else {
+                    alert('Error: ' + (data.message || 'Registration failed'));
+                }
+            } catch (err) {
+                alert('Server error saving registration.');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Official Entry Pass';
+            }
+        }
+
+        function showPassView(reg) {
+            document.getElementById('form-view').classList.add('hidden');
+            document.getElementById('qr-result-view').classList.remove('hidden');
+
+            document.getElementById('passIdBadge').textContent = reg.pass_id;
+            document.getElementById('resName').textContent = reg.name;
+            document.getElementById('resCompany').textContent = reg.company;
+            document.getElementById('resDesig').textContent = reg.designation;
+            document.getElementById('resDistPhone').textContent = `${reg.district} • ${reg.phone}`;
+
+            const qrcodeContainer = document.getElementById('qrcode');
+            qrcodeContainer.innerHTML = '';
+            new QRCode(qrcodeContainer, {
+                text: reg.qr_payload,
+                width: 140,
+                height: 140,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function printBadge() {
+            if (!currentReg) return;
+            const printQr = document.getElementById('print-qrcode-container');
+            const printDetails = document.getElementById('print-details');
+            printQr.innerHTML = '';
+
+            const qrSize = 118;
+            new QRCode(printQr, {
+                text: currentReg.qr_payload,
+                width: qrSize,
+                height: qrSize,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            printDetails.innerHTML = `
+                <p style="font-weight: bold; font-size: 16pt; margin: 0; line-height: 1.1;">${currentReg.name}</p>
+                <p style="font-weight: bold; font-size: 11pt; margin: 0; line-height: 1.1;">${currentReg.company}</p>
+                <p style="font-weight: bold; font-size: 15pt; margin: 0; line-height: 1.1; color: #ea580c;">${currentReg.designation}</p>
+            `;
+
+            const poll = (cb) => {
+                const img = printQr.querySelector('img');
+                if (img && img.src) cb(img);
+                else setTimeout(() => poll(cb), 50);
+            };
+
+            poll((qrImg) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = qrSize;
+                canvas.height = qrSize;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.src = qrImg.src;
+
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0);
+
+                    const cx = canvas.width / 2;
+                    const cy = canvas.height / 2;
+                    const text = "AKITDA";
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const m = ctx.measureText(text);
+
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(cx - m.width / 2 - 4, cy - 6 - 2, m.width + 8, 16);
+
+                    ctx.fillStyle = '#00008B';
+                    ctx.fillText(text, cx, cy);
+
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(0, 0, qrSize, qrSize);
+
+                    printQr.innerHTML = '';
+                    printQr.appendChild(canvas);
+
+                    requestAnimationFrame(() => window.print());
+                };
+            });
+        }
+
+        function sharePass() {
+            if (!currentReg) return;
+            const text = `*AKITDA General Body 2026 (10th December 2026) - Entry Pass*\nName: ${currentReg.name}\nCompany: ${currentReg.company}\nDesignation: ${currentReg.designation}\nPass ID: ${currentReg.pass_id}\nCode: ${currentReg.qr_payload}`;
+            const cleanPhone = currentReg.phone.replace(/[^0-9]/g, '');
+            const targetPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+            const url = `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        function resetForm() {
+            document.getElementById('registrationForm').reset();
+            document.getElementById('memberSearch').value = '';
+            document.getElementById('qr-result-view').classList.add('hidden');
+            document.getElementById('form-view').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

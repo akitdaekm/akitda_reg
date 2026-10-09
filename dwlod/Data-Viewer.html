@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKITDA Scanned Data Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        th, td { padding: 0.75rem 1rem; text-align: left; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8">
+
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-6xl mx-auto">
+        
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">AKITDA Scanned Data Viewer</h1>
+        
+        <!-- Status & Controls -->
+        <div class="mb-4 p-4 bg-gray-50 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-700">Data Sync ID:</p>
+                <p id="dataSyncId" class="font-mono text-xs bg-gray-200 p-1 rounded break-all">Connecting...</p>
+            </div>
+            <p id="statusMessage" class="font-medium text-gray-700">Initializing...</p>
+            <!-- UPDATED: Changed flex-col to visually separate delete button -->
+            <div class="flex flex-col gap-4">
+                <div class="flex flex-wrap gap-4"> <!-- Safe buttons -->
+                    <button id="fetchDataBtn" disabled class="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-300">Fetch Data</button>
+                    <button id="downloadCsvBtn" disabled class="px-5 py-2 bg-green-600 text-white font-medium rounded-lg shadow hover:bg-green-700 disabled:bg-gray-300">Download as Spreadsheet (.csv)</button>
+                </div>
+                <div> <!-- Dangerous button, now on its own line -->
+                    <button id="deleteAllBtn" disabled class="px-5 py-2 bg-red-600 text-white font-medium rounded-lg shadow hover:bg-red-700 disabled:bg-gray-300">Delete All Data</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="w-full min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Company</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Designation</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Phone</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">District</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Scanned At</th>
+                        <th class="text-xs font-semibold text-gray-600 uppercase tracking-wider text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Data rows will be injected here by JavaScript -->
+                    <tr>
+                        <td colspan="7" class="p-4 text-center text-gray-500">Click "Fetch Data" to load scans.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- NEW: Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full">
+            <h3 class="text-lg font-bold text-gray-900" id="modalTitle">Delete Confirmation</h3>
+            <p class="mt-2 text-sm text-gray-600" id="modalBody">Are you sure you want to delete this scan? This action cannot be undone.</p>
+            <div class="mt-6 flex justify-end gap-4">
+                <button id="modalCancelBtn" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300">Cancel</button>
+                <button id="modalConfirmBtn" class="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import Firebase services
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // NEW: Import deleteDoc, doc, and writeBatch
+        import { getFirestore, collection, getDocs, query, setLogLevel, deleteDoc, doc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Config ---
+        // FIX: Correctly formatted config for GoDaddy
+        const firebaseConfig = {
+          "apiKey": "AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY",
+          "authDomain": "bard-frontend.firebaseapp.com",
+          "projectId": "bard-frontend",
+          "storageBucket": "bard-frontend.firebasestorage.app",
+          "messagingSenderId": "175205271074",
+          "appId": "1:175205271074:web:2b7bd4d34d33bf38e6ec7b"
+        };
+        const appId = "c_2b2d6dd07c0149cd_data-viewer.html-166";
+        
+        let app, auth, db;
+        let userId = null;
+        let scannedData = []; // To store data for CSV export
+        let dataToDelete = null; // To store docId or 'ALL' for deletion
+
+        // --- UI Elements ---
+        // Declare here, assign inside DOMContentLoaded
+        let dataSyncIdEl, statusMessageEl, fetchDataBtn, downloadCsvBtn, dataTableBodyEl, deleteAllBtn;
+        let deleteModal, modalTitle, modalBody, modalCancelBtn, modalConfirmBtn;
+
+        // FIX: Wrap all execution logic in DOMContentLoaded to ensure elements exist
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- 1. Get all UI elements ---
+            dataSyncIdEl = document.getElementById('dataSyncId');
+            statusMessageEl = document.getElementById('statusMessage');
+            fetchDataBtn = document.getElementById('fetchDataBtn');
+            downloadCsvBtn = document.getElementById('downloadCsvBtn');
+            dataTableBodyEl = document.getElementById('dataTableBody');
+            deleteAllBtn = document.getElementById('deleteAllBtn');
+            
+            // Modal elements
+            deleteModal = document.getElementById('deleteModal');
+            modalTitle = document.getElementById('modalTitle');
+            modalBody = document.getElementById('modalBody');
+            modalCancelBtn = document.getElementById('modalCancelBtn');
+            modalConfirmBtn = document.getElementById('modalConfirmBtn');
+
+            // --- 2. Add Event Listeners ---
+            fetchDataBtn.addEventListener('click', fetchScannedData);
+            downloadCsvBtn.addEventListener('click', downloadCSV);
+            deleteAllBtn.addEventListener('click', () => showDeleteModal('ALL'));
+            
+            // Modal listeners
+            modalCancelBtn.addEventListener('click', hideDeleteModal);
+            modalConfirmBtn.addEventListener('click', handleConfirmDelete);
+            
+            // Listen for clicks on the table body for row delete buttons
+            dataTableBodyEl.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-row-btn')) {
+                    const docId = e.target.getAttribute('data-doc-id');
+                    showDeleteModal(docId);
+                }
+            });
+
+            // --- 3. Initialize Firebase and Auth ---
+            // This now runs *after* elements are loaded, fixing both errors.
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setLogLevel('Debug');
+                console.log("Firebase initialized for viewer.");
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("User is signed in with UID:", userId);
+                        dataSyncIdEl.textContent = userId; // This will now work
+                        fetchDataBtn.disabled = false;
+                        statusMessageEl.textContent = "Ready to fetch data.";
+                    } else {
+                        console.log("User not signed in, attempting auth...");
+                        statusMessageEl.textContent = "Connecting to data sync...";
+                        try {
+                            // FIX: Use anonymous sign-in for GoDaddy
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously.");
+                            
+                        } catch (authError) {
+                            console.error("Authentication error:", authError);
+                            statusMessageEl.textContent = "Error: Could not connect to data sync.";
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Failed to initialize Firebase:", e);
+                statusMessageEl.textContent = "Error: Firebase init failed. Did you paste in your config values?";
+            }
+
+        }); // --- End of DOMContentLoaded ---
+
+        // --- Modal Functions ---
+        function showDeleteModal(docId) {
+            dataToDelete = docId;
+            if (docId === 'ALL') {
+                modalTitle.textContent = "Delete All Scans?";
+                modalBody.textContent = `Are you sure you want to delete ALL ${scannedData.length} scanned records? This action cannot be undone.`;
+            } else {
+                modalTitle.textContent = "Delete Scan?";
+                modalBody.textContent = "Are you sure you want to delete this scan? This action cannot be undone.";
+            }
+            deleteModal.classList.remove('hidden');
+        }
+
+        function hideDeleteModal() {
+            dataToDelete = null;
+            deleteModal.classList.add('hidden');
+        }
+
+        async function handleConfirmDelete() {
+            if (dataToDelete === null) return;
+            
+            statusMessageEl.textContent = "Deleting...";
+            modalConfirmBtn.disabled = true;
+
+            try {
+                if (dataToDelete === 'ALL') {
+                    // Delete all documents
+                    const collectionPath = `artifacts/${appId}/users/${userId}/scans`;
+                    const q = query(collection(db, collectionPath));
+                    const querySnapshot = await getDocs(q);
+                    const batch = writeBatch(db);
+                    querySnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+                    await batch.commit();
+                    statusMessageEl.textContent = `Deleted all ${querySnapshot.size} records.`;
+                } else {
+                    // Delete a single document
+                    const collectionPath = `artifacts/${appId}/users/${userId}/scans`;
+                    const docRef = doc(db, collectionPath, dataToDelete);
+                    await deleteDoc(docRef);
+                    statusMessageEl.textContent = "Scan deleted.";
+                }
+            } catch (e) {
+                console.error("Error deleting document(s): ", e);
+                statusMessageEl.textContent = "Error deleting data. See console.";
+            }
+
+            hideDeleteModal();
+            modalConfirmBtn.disabled = false;
+            fetchScannedData(); // Refresh the table
+        }
+
+
+        // --- Fetch Data Function ---
+        async function fetchScannedData() {
+            if (!db || !userId || !appId) {
+                statusMessageEl.textContent = "Error: Not connected to database.";
+                return;
+            }
+
+            statusMessageEl.textContent = "Fetching data...";
+            dataTableBodyEl.innerHTML = ""; // Clear existing table
+            scannedData = []; // Clear existing data array
+
+            const collectionPath = `artifacts/${appId}/users/${userId}/scans`;
+            
+            try {
+                const q = query(collection(db, collectionPath));
+                const querySnapshot = await getDocs(q);
+                
+                let count = 0;
+                querySnapshot.forEach((doc) => {
+                    // NEW: Get doc.id and add it to the data
+                    const data = doc.data();
+                    const docId = doc.id;
+                    scannedData.push({ ...data, docId }); // Save for CSV (and delete)
+                    
+                    // Format timestamp
+                    let timestamp = "Pending...";
+                    if (data.scannedAt && data.scannedAt.toDate) {
+                        timestamp = data.scannedAt.toDate().toLocaleString();
+                    }
+
+                    // Add row to table
+                    // NEW: Added 7th column for Delete button
+                    const row = `
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td>${data.name || ''}</td>
+                            <td>${data.company || ''}</td>
+                            <td>${data.designation || ''}</td>
+                            <td>${data.phone || ''}</td>
+                            <td>${data.district || ''}</td>
+                            <td>${timestamp}</td>
+                            <td class="text-center">
+                                <button data-doc-id="${docId}" class="delete-row-btn text-red-600 hover:text-red-800 font-medium text-sm">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                    dataTableBodyEl.innerHTML += row;
+                    count++;
+                });
+
+                statusMessageEl.textContent = `Successfully fetched ${count} records.`;
+                if (count > 0) {
+                    downloadCsvBtn.disabled = false;
+                    deleteAllBtn.disabled = false;
+                } else {
+                    dataTableBodyEl.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No records found.</td></tr>`;
+                    downloadCsvBtn.disabled = true;
+                    deleteAllBtn.disabled = true;
+                }
+
+            } catch (e) {
+                console.error("Error fetching documents: ", e);
+                statusMessageEl.textContent = "Error fetching data. See console for details.";
+            }
+        }
+
+        // --- Download CSV Function ---
+        function downloadCSV() {
+            if (scannedData.length === 0) {
+                statusMessageEl.textContent = "No data to export.";
+                return;
+            }
+
+            statusMessageEl.textContent = "Generating spreadsheet...";
+
+            const headers = "Name,Company,Designation,Phone,District,FullCode,ScannedAt\n";
+            
+            const csvContent = scannedData.map(row => {
+                // Escape commas within fields by wrapping in double quotes
+                const name = `"${(row.name || '').replace(/"/g, '""')}"`;
+                const company = `"${(row.company || '').replace(/"/g, '""')}"`;
+                const designation = `"${(row.designation || '').replace(/"/g, '""')}"`;
+                const phone = `"${(row.phone || '').replace(/"/g, '""')}"`;
+                const district = `"${(row.district || '').replace(/"/g, '""')}"`;
+                const fullCode = `"${(row.fullCode || '').replace(/"/g, '""')}"`;
+                const timestamp = `"${row.scannedAt ? row.scannedAt.toDate().toLocaleString() : ''}"`;
+                
+                return [name, company, designation, phone, district, fullCode, timestamp].join(',');
+            }).join('\n');
+
+            const blob = new Blob([headers + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'akitda_scanned_data.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                statusMessageEl.textContent = "Spreadsheet download started.";
+            } else {
+                statusMessageEl.textContent = "Error: CSV Download not supported in this browser.";
+            }
+        }
+
+    </script>
+</body>
+</html>
+
+

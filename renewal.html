@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKITDA Membership Renewal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Back to Hub -->
+    <div class="w-full max-w-md flex justify-between items-center mb-3">
+        <a href="/" class="text-xs font-semibold text-slate-600 hover:text-orange-600">← Back to Main Hub</a>
+        <span class="text-xs text-slate-400">Ernakulam District Committee</span>
+    </div>
+
+    <!-- Main Container -->
+    <div id="app" class="w-full max-w-md">
+        
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <img src="/static/akitda-logo.png" alt="AKITDA Logo" class="w-20 h-20 mx-auto rounded-full mb-3 shadow-md bg-white p-1" onerror="this.src='akitda-logo.png'">
+            <h1 class="text-2xl font-bold text-slate-800">All Kerala IT Dealers Association</h1>
+            <p class="text-sm text-slate-500 font-medium">Ernakulam District Committee</p>
+        </header>
+
+        <!-- Dynamic Content Card -->
+        <main class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-200">
+            
+            <!-- Step 1: Form View -->
+            <div id="form-view">
+                <h2 class="text-xl font-bold text-center text-slate-800 mb-1">Annual Membership Renewal</h2>
+                <p class="text-center text-slate-500 text-xs mb-5">Fill in your member details to proceed to payment.</p>
+                
+                <!-- Quick member search from 193 members -->
+                <div class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                    <label class="block text-xs font-bold text-orange-900 mb-1">Search Existing Member (Auto-Fill)</label>
+                    <div class="relative">
+                        <input type="text" id="memberSearch" oninput="searchMembers(this.value)" placeholder="Type company or member name..." class="w-full px-3 py-1.5 text-xs border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
+                        <div id="searchResults" class="hidden absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-44 overflow-y-auto divide-y divide-slate-100"></div>
+                    </div>
+                </div>
+
+                <form id="renewal-form" onsubmit="proceedToPay(event)">
+                    <div class="mb-3">
+                        <label for="member-name" class="block text-xs font-semibold text-slate-700 mb-1">Member Name *</label>
+                        <input type="text" id="member-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Enter your full name">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="company-name" class="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
+                        <input type="text" id="company-name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Enter your company name">
+                    </div>
+
+                    <div class="mb-5">
+                        <label for="phone-number" class="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                        <input type="tel" id="phone-number" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Mobile Number">
+                    </div>
+                    
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center mb-5">
+                        <span class="text-xs uppercase font-bold text-slate-500 block">Annual Renewal Fee</span>
+                        <span class="text-3xl font-extrabold text-slate-900 block mt-0.5">₹1,416.00</span>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-sm">
+                        Proceed to Pay via UPI
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 2: UPI Payment -->
+            <div id="payment-view" class="hidden text-center space-y-4">
+                <h2 class="text-xl font-bold text-slate-800">Scan & Pay via UPI</h2>
+                <p class="text-xs text-slate-600">Scan with GPay, PhonePe, Paytm or BHIM to pay <strong class="text-slate-900">₹1,416.00</strong></p>
+                
+                <div class="p-3 bg-white border rounded-xl inline-block shadow-sm">
+                    <div id="upi-qr-code"></div>
+                </div>
+
+                <div class="bg-slate-100 p-2 rounded-lg text-xs font-mono text-slate-700">
+                    UPI ID: <strong class="text-slate-900">8547026604@okbizaxis</strong>
+                </div>
+                
+                <a id="upi-payment-link" href="upi://pay?pa=8547026604@okbizaxis&pn=AKITDA%20Ernakulam&am=1416.00&cu=INR" class="block w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
+                    📱 Pay with UPI App (Mobile)
+                </a>
+
+                <div class="pt-1">
+                    <input type="text" id="upi-ref" placeholder="UPI Reference / Transaction ID (Optional)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-center">
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button id="confirm-payment-btn" onclick="confirmPayment()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
+                        ✅ Confirm Renewal
+                    </button>
+                    <button onclick="cancelPayment()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 px-4 rounded-xl text-sm">
+                        Back
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="success-view" class="hidden text-center space-y-4">
+                <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+                    <svg class="w-14 h-14 text-emerald-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <h2 class="text-xl font-bold">Payment Recorded!</h2>
+                    <p class="text-xs text-emerald-700 mt-1">Thank you, <strong id="success-name"></strong>! Your membership renewal has been saved to the database.</p>
+                </div>
+                <button onclick="resetRenewal()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
+                    Submit Another Renewal
+                </button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        async function searchMembers(q) {
+            const resBox = document.getElementById('searchResults');
+            if (!q || q.trim().length < 2) {
+                resBox.classList.add('hidden');
+                return;
+            }
+            try {
+                const r = await fetch(`/api/members?q=${encodeURIComponent(q)}&limit=10`);
+                const d = await r.json();
+                if (d.members && d.members.length > 0) {
+                    resBox.innerHTML = d.members.map(m => `
+                        <div onclick="selectMember('${escapeStr(m.name)}', '${escapeStr(m.company)}', '${escapeStr(m.phone)}')" class="p-2 hover:bg-orange-50 cursor-pointer text-left">
+                            <div class="font-bold text-xs text-slate-800">${m.company}</div>
+                            <div class="text-[11px] text-slate-500">${m.name} • 📞 ${m.phone}</div>
+                        </div>
+                    `).join('');
+                    resBox.classList.remove('hidden');
+                } else {
+                    resBox.classList.add('hidden');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function escapeStr(s) {
+            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function selectMember(name, company, phone) {
+            document.getElementById('member-name').value = name;
+            document.getElementById('company-name').value = company;
+            document.getElementById('phone-number').value = phone;
+            document.getElementById('searchResults').classList.add('hidden');
+            document.getElementById('memberSearch').value = `${company} (${name})`;
+        }
+
+        function proceedToPay(e) {
+            e.preventDefault();
+            document.getElementById('form-view').classList.add('hidden');
+            document.getElementById('payment-view').classList.remove('hidden');
+
+            const upiQrContainer = document.getElementById('upi-qr-code');
+            upiQrContainer.innerHTML = '';
+            const upiPayload = `upi://pay?pa=8547026604@okbizaxis&pn=AKITDA%20Ernakulam&am=1416.00&cu=INR`;
+            new QRCode(upiQrContainer, {
+                text: upiPayload,
+                width: 150,
+                height: 150,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        function cancelPayment() {
+            document.getElementById('payment-view').classList.add('hidden');
+            document.getElementById('form-view').classList.remove('hidden');
+        }
+
+        async function confirmPayment() {
+            const name = document.getElementById('member-name').value.trim();
+            const company = document.getElementById('company-name').value.trim();
+            const phone = document.getElementById('phone-number').value.trim();
+            const upiRef = document.getElementById('upi-ref').value.trim();
+
+            const btn = document.getElementById('confirm-payment-btn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch('/api/renew', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        member_name: name,
+                        company_name: company,
+                        phone: phone,
+                        amount: 1416.00,
+                        upi_ref: upiRef
+                    })
+                });
+                const d = await res.json();
+                if (d.status === 'success') {
+                    document.getElementById('payment-view').classList.add('hidden');
+                    document.getElementById('success-view').classList.remove('hidden');
+                    document.getElementById('success-name').textContent = name;
+                }
+            } catch (e) {
+                alert('Error recording renewal.');
+                console.error(e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✅ Confirm Renewal';
+            }
+        }
+
+        function resetRenewal() {
+            document.getElementById('renewal-form').reset();
+            document.getElementById('memberSearch').value = '';
+            document.getElementById('upi-ref').value = '';
+            document.getElementById('success-view').classList.add('hidden');
+            document.getElementById('form-view').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

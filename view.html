@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#080c14">
+    <title>AKITDA General Body 2026 - Registered Delegates & Passes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/vendor/qrcode.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #080c14;
+            color: #f1f5f9;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        @media screen and (max-width: 768px) {
+            input, select, textarea { font-size: 16px !important; }
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        @media print {
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area {
+                position: fixed; left: 0; top: 0; width: 60mm; height: 59.8mm;
+                display: flex !important; flex-direction: column; justify-content: center; align-items: center;
+                background: white !important; color: black !important;
+            }
+            #print-qrcode-container canvas { width: 30mm !important; height: 30mm !important; }
+            #print-details { font-size: 10pt !important; margin-top: 1.5mm; text-align: center; color: black !important; }
+        }
+        @page { size: 60mm 60mm; margin: 0; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 min-h-screen antialiased selection:bg-cyan-500 selection:text-slate-950">
+
+    <div class="bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border border-slate-800">
+        <!-- Top Nav & Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-5 border-b border-slate-800">
+            <div class="flex items-center space-x-3">
+                <div class="p-1 rounded-xl bg-gradient-to-tr from-orange-500 via-amber-400 to-cyan-400 p-[1.5px] shadow-lg shadow-orange-500/20">
+                    <img src="/static/akitda-logo.png" alt="AKITDA" class="h-9 w-auto bg-white p-1 rounded-lg" onerror="this.src='akitda-logo.png'">
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Registered Delegates & Passes Issued</h1>
+                    <p class="text-xs text-slate-400">AKITDA General Body 2026 • 10th December 2026 • Complete Entry Pass Management</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <a href="/" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold px-3.5 py-2 rounded-xl border border-slate-700 transition">
+                    ← Main Hub
+                </a>
+                <a href="/register" target="_blank" class="text-xs bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold px-3.5 py-2 rounded-xl shadow-lg shadow-cyan-500/20 transition">
+                    ➕ New Registration
+                </a>
+            </div>
+        </div>
+        
+        <!-- Summary KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-950/40 border border-blue-800/60 p-5 rounded-2xl shadow-xl">
+                <div class="text-xs font-bold uppercase tracking-wider text-cyan-400">Total Registered</div>
+                <div class="text-3xl font-extrabold text-cyan-300 mt-1" id="memberCount">0</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">Passes Generated</div>
+            </div>
+            <div class="bg-emerald-950/40 border border-emerald-800/60 p-5 rounded-2xl shadow-xl">
+                <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">Checked In (Attended)</div>
+                <div class="text-3xl font-extrabold text-emerald-300 mt-1" id="checkedInCount">0</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">Scanned at Venue</div>
+            </div>
+            <div class="bg-amber-950/40 border border-amber-800/60 p-5 rounded-2xl shadow-xl">
+                <div class="text-xs font-bold uppercase tracking-wider text-amber-400">Pending Check-In</div>
+                <div class="text-3xl font-extrabold text-amber-300 mt-1" id="pendingCount">0</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">Awaiting Arrival</div>
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            <input type="text" id="searchInput" oninput="filterData()" placeholder="Search name, company, pass ID, phone..." class="px-3.5 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white placeholder-slate-500">
+            <select id="districtFilter" onchange="filterData()" class="px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white">
+                <option value="">All Districts</option>
+                <option value="Ernakulam">Ernakulam</option>
+                <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                <option value="Thrissur">Thrissur</option>
+                <option value="Kozhikode">Kozhikode</option>
+                <option value="Kollam">Kollam</option>
+                <option value="Kottayam">Kottayam</option>
+                <option value="Palakkad">Palakkad</option>
+                <option value="Malappuram">Malappuram</option>
+                <option value="Kannur">Kannur</option>
+                <option value="Alappuzha">Alappuzha</option>
+            </select>
+            <select id="desigFilter" onchange="filterData()" class="px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white">
+                <option value="">All Designations</option>
+                <option value="Member">Member</option>
+                <option value="State Executive Member">State Executive Member</option>
+                <option value="Distributor">Distributor</option>
+                <option value="Vendor">Vendor</option>
+                <option value="Guest">Guest</option>
+            </select>
+            <select id="statusFilter" onchange="filterData()" class="px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white">
+                <option value="">All Attendance Statuses</option>
+                <option value="checked_in">✅ Checked In (Scanned)</option>
+                <option value="pending">⏳ Pending (Not Checked In)</option>
+            </select>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+            <div class="text-xs text-slate-400">
+                Showing <span id="showingCount" class="font-bold text-white">0</span> records
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="loadData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition">
+                    🔄 Refresh
+                </button>
+                <a href="/api/export/registrations-csv" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg transition">
+                    📥 Export CSV
+                </a>
+            </div>
+        </div>
+
+        <!-- Professional Dark Table -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-800">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-950 text-cyan-400 text-xs uppercase font-bold tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">#</th>
+                        <th class="py-3 px-3">Pass ID</th>
+                        <th class="py-3 px-3">Delegate Name</th>
+                        <th class="py-3 px-3">Company / Firm</th>
+                        <th class="py-3 px-3">Designation</th>
+                        <th class="py-3 px-3">District</th>
+                        <th class="py-3 px-3">Phone</th>
+                        <th class="py-3 px-3">Registered At</th>
+                        <th class="py-3 px-3">Attendance</th>
+                        <th class="py-3 px-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="divide-y divide-slate-800/80">
+                    <tr>
+                        <td colspan="10" class="py-8 text-center text-slate-500">Loading registered delegates...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Hidden Thermal Print Element -->
+    <div id="print-area" class="hidden">
+        <div id="print-qrcode-container" class="text-center"></div>
+        <div id="print-details" class="text-center font-sans"></div>
+    </div>
+
+    <!-- Pass Modal -->
+    <div id="passModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+        <div class="bg-slate-900 rounded-3xl shadow-2xl border border-slate-700 max-w-sm w-full p-6 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold">✕</button>
+            <div class="text-center mb-3">
+                <span class="text-xs uppercase font-bold text-cyan-400 tracking-wider">Official Delegate Pass</span>
+            </div>
+            
+            <div id="modalCard" class="bg-white text-slate-900 border-2 border-slate-300 rounded-2xl p-5 shadow-sm text-left relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 to-blue-600"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-2">
+                        <img src="/static/akitda-logo.png" class="h-7" onerror="this.src='akitda-logo.png'">
+                        <div>
+                            <div class="text-[11px] font-bold text-slate-900 leading-tight">AKITDA</div>
+                            <div class="text-[9px] text-slate-500">General Body 2026 • 10 Dec</div>
+                        </div>
+                    </div>
+                    <span id="modalPassId" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-700">AK-000000</span>
+                </div>
+                <div id="modalQr" class="p-2.5 bg-white border rounded-lg flex justify-center mb-3"></div>
+                <div class="space-y-0.5 text-center">
+                    <h4 id="modalName" class="text-base font-extrabold text-slate-900 leading-tight">Name</h4>
+                    <p id="modalCompany" class="text-xs font-semibold text-slate-700">Company</p>
+                    <p id="modalDesig" class="text-[11px] inline-block px-2 py-0.5 bg-orange-100 text-orange-800 font-bold rounded-full mt-1">Designation</p>
+                    <p id="modalDistPhone" class="text-[11px] text-slate-500 pt-1 font-mono">District • Phone</p>
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-2">
+                <button onclick="printFromModal()" class="w-full bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-1.5">
+                    <span>🖨️ Print 60mm Thermal Badge</span>
+                </button>
+                <button onclick="shareFromModal()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-xs flex items-center justify-center gap-1.5">
+                    <span>📱 WhatsApp Share Pass</span>
+                </button>
+                <button onclick="closeModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 px-4 rounded-xl transition text-xs border border-slate-700">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allRegistrations = [];
+        let activeModalPass = null;
+
+        async function loadData() {
+            try {
+                const res = await fetch('/api/registrations');
+                const data = await res.json();
+                allRegistrations = data.registrations || [];
+
+                const total = allRegistrations.length;
+                const checkedIn = allRegistrations.filter(r => r.scan_count && r.scan_count > 0).length;
+                const pending = total - checkedIn;
+
+                document.getElementById('memberCount').textContent = total;
+                document.getElementById('checkedInCount').textContent = checkedIn;
+                document.getElementById('pendingCount').textContent = pending;
+
+                filterData();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="py-8 text-center text-rose-400">Failed to load registration data.</td></tr>`;
+            }
+        }
+
+        function filterData() {
+            const query = (document.getElementById('searchInput').value || '').toLowerCase();
+            const district = document.getElementById('districtFilter').value;
+            const desig = document.getElementById('desigFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
+            const filtered = allRegistrations.filter(r => {
+                const matchQ = !query || 
+                    (r.name || '').toLowerCase().includes(query) || 
+                    (r.company || '').toLowerCase().includes(query) || 
+                    (r.phone || '').includes(query) || 
+                    (r.pass_id || '').toLowerCase().includes(query);
+                
+                const matchDist = !district || r.district === district;
+                const matchDesig = !desig || r.designation === desig;
+                let matchStatus = true;
+                if (status === 'checked_in') matchStatus = r.scan_count && r.scan_count > 0;
+                else if (status === 'pending') matchStatus = !r.scan_count || r.scan_count === 0;
+
+                return matchQ && matchDist && matchDesig && matchStatus;
+            });
+
+            document.getElementById('showingCount').textContent = filtered.length;
+            renderRows(filtered);
+        }
+
+        function renderRows(list) {
+            const tbody = document.getElementById('tableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-500">No registered delegates found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map((r, idx) => {
+                const isCheckedIn = r.scan_count && r.scan_count > 0;
+                const statusHtml = isCheckedIn
+                    ? `<span class="inline-flex items-center gap-1 bg-emerald-950 text-emerald-400 border border-emerald-800/60 px-2.5 py-0.5 rounded-full text-xs font-bold">✅ Checked In</span><div class="text-[10px] text-slate-500 font-mono mt-0.5">${r.last_scanned_at || ''}</div>`
+                    : `<span class="inline-flex items-center gap-1 bg-amber-950 text-amber-400 border border-amber-800/60 px-2.5 py-0.5 rounded-full text-xs font-bold">⏳ Pending</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-800/60 transition text-slate-200">
+                        <td class="py-3 px-3 font-mono text-xs text-slate-500">${idx + 1}</td>
+                        <td class="py-3 px-3">
+                            <span onclick='showModal(${JSON.stringify(r).replace(/'/g, "&apos;")})' class="font-mono text-xs font-bold bg-cyan-950 hover:bg-cyan-900 text-cyan-300 px-2 py-1 rounded-lg cursor-pointer border border-cyan-800/60 transition">
+                                ${r.pass_id}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 font-bold text-white">${r.name}</td>
+                        <td class="py-3 px-3 text-slate-300 font-medium">${r.company}</td>
+                        <td class="py-3 px-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-950 text-orange-400 border border-orange-800/60">${r.designation}</span></td>
+                        <td class="py-3 px-3 text-slate-400">${r.district}</td>
+                        <td class="py-3 px-3 font-mono text-xs text-cyan-400">${r.phone}</td>
+                        <td class="py-3 px-3 text-xs text-slate-400 font-mono">${r.registered_at || '-'}</td>
+                        <td class="py-3 px-3">${statusHtml}</td>
+                        <td class="py-3 px-3 text-center space-x-1.5 whitespace-nowrap">
+                            <button onclick='showModal(${JSON.stringify(r).replace(/'/g, "&apos;")})' class="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 text-xs font-semibold px-2.5 py-1 rounded-lg border border-cyan-800/60 transition">
+                                🎫 Pass
+                            </button>
+                            <button onclick='printBadge(${JSON.stringify(r).replace(/'/g, "&apos;")})' class="bg-orange-950 hover:bg-orange-900 text-orange-400 text-xs font-semibold px-2.5 py-1 rounded-lg border border-orange-800/60 transition">
+                                🖨️ Badge
+                            </button>
+                            ${!isCheckedIn ? `
+                            <button onclick="quickCheckIn('${escapeStr(r.qr_payload)}')" class="bg-emerald-950 hover:bg-emerald-900 text-emerald-400 text-xs font-semibold px-2.5 py-1 rounded-lg border border-emerald-800/60 transition">
+                                ⚡ Check In
+                            </button>` : ''}
+                            <button onclick="deleteReg(${r.id})" class="text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 text-xs p-1 rounded transition">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function escapeStr(s) {
+            return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function showModal(r) {
+            activeModalPass = r;
+            document.getElementById('modalPassId').textContent = r.pass_id;
+            document.getElementById('modalName').textContent = r.name;
+            document.getElementById('modalCompany').textContent = r.company;
+            document.getElementById('modalDesig').textContent = r.designation;
+            document.getElementById('modalDistPhone').textContent = `${r.district} • ${r.phone}`;
+
+            const qrEl = document.getElementById('modalQr');
+            qrEl.innerHTML = '';
+            new QRCode(qrEl, {
+                text: r.qr_payload,
+                width: 130,
+                height: 130,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('passModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('passModal').classList.add('hidden');
+            activeModalPass = null;
+        }
+
+        function printBadge(r) {
+            const printQr = document.getElementById('print-qrcode-container');
+            const printDetails = document.getElementById('print-details');
+            printQr.innerHTML = '';
+
+            const qrSize = 118;
+            new QRCode(printQr, {
+                text: r.qr_payload,
+                width: qrSize,
+                height: qrSize,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            printDetails.innerHTML = `
+                <p style="font-weight: bold; font-size: 16pt; margin: 0; line-height: 1.1;">${r.name}</p>
+                <p style="font-weight: bold; font-size: 11pt; margin: 0; line-height: 1.1;">${r.company}</p>
+                <p style="font-weight: bold; font-size: 15pt; margin: 0; line-height: 1.1; color: #ea580c;">${r.designation}</p>
+            `;
+
+            const pollForQRCode = (callback) => {
+                const qrImg = printQr.querySelector('img');
+                if (qrImg && qrImg.src) {
+                    callback(qrImg);
+                } else {
+                    setTimeout(() => pollForQRCode(callback), 50);
+                }
+            };
+
+            pollForQRCode((qrImg) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = qrSize;
+                canvas.height = qrSize;
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.src = qrImg.src;
+
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0);
+
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const text = "AKITDA";
+                    ctx.font = 'bold 12px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const textMetrics = ctx.measureText(text);
+
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(centerX - textMetrics.width / 2 - 4, centerY - 12 / 2 - 2, textMetrics.width + 8, 12 + 4);
+
+                    ctx.fillStyle = '#00008B';
+                    ctx.fillText(text, centerX, centerY);
+
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(0, 0, qrSize, qrSize);
+
+                    printQr.innerHTML = '';
+                    printQr.appendChild(canvas);
+
+                    requestAnimationFrame(() => window.print());
+                };
+            });
+        }
+
+        function printFromModal() {
+            if (activeModalPass) printBadge(activeModalPass);
+        }
+
+        function shareFromModal() {
+            if (!activeModalPass) return;
+            const text = `*AKITDA General Body 2026 (10th Dec 2026) - Entry Pass*\nName: ${activeModalPass.name}\nCompany: ${activeModalPass.company}\nDesignation: ${activeModalPass.designation}\nPass ID: ${activeModalPass.pass_id}\nCode: ${activeModalPass.qr_payload}`;
+            const cleanPhone = activeModalPass.phone.replace(/[^0-9]/g, '');
+            const targetPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+            const url = `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }
+
+        async function quickCheckIn(code) {
+            if (!confirm('Mark delegate as Checked-In?')) return;
+            try {
+                const res = await fetch('/api/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                const d = await res.json();
+                if (d.status === 'success') {
+                    loadData();
+                } else {
+                    alert('Check-in error: ' + d.message);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteReg(id) {
+            if (!confirm('Delete this registration pass record?')) return;
+            try {
+                const res = await fetch(`/api/registrations/${id}`, { method: 'DELETE' });
+                const d = await res.json();
+                if (d.status === 'success') {
+                    loadData();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

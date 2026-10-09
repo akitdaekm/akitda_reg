@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKITDA Ernakulam - Member Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Spinner for loading states */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3B82F6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Custom file input */
+        input[type="file"]::file-selector-button {
+            @apply px-3 py-1.5 bg-gray-100 text-gray-700 font-medium text-sm rounded-lg border border-gray-300 hover:bg-gray-200 cursor-pointer transition-colors;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Main App Container -->
+    <div id="app" class="container mx-auto max-w-4xl p-4 min-h-screen flex items-center justify-center">
+        <!-- This content will be replaced by JavaScript -->
+        <div class="text-center">
+            <div class="spinner mx-auto"></div>
+            <p class="mt-2 text-gray-600">Loading Portal...</p>
+        </div>
+    </div>
+
+    <!-- Message Toast -->
+    <div id="message-toast" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-xl text-white transition-all translate-x-[200%] hidden">
+        <span id="message-text"></span>
+    </div>
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // --- FIREBASE IMPORTS ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithCustomToken, 
+            signInAnonymously,
+            RecaptchaVerifier, 
+            signInWithPhoneNumber,
+            onAuthStateChanged,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc,
+            collection,
+            query,
+            where,
+            getDocs,
+            updateDoc,
+            serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        // --- GLOBAL VARIABLES ---
+        const appContainer = document.getElementById('app');
+        const messageToast = document.getElementById('message-toast');
+        const messageText = document.getElementById('message-text');
+
+        let app, auth, db, storage;
+        let recaptchaVerifier = null;
+        let confirmationResult = null;
+        let currentUserId = null;
+        let currentMemberData = null;
+        let memberDocId = null;
+
+        // --- CONFIGURATION (MANDATORY) ---
+        // These variables are provided by the environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+  apiKey: "AIzaSyDkdfl4vSUQPM1TNg7MDiy99DzQHTeg-FU",
+  authDomain: "akitdaekm-301a1.firebaseapp.com",
+  projectId: "akitdaekm-301a1",
+  storageBucket: "akitdaekm-301a1.appspot.com",
+  messagingSenderId: "612889859571",
+  appId: "1:612889859571:web:e992202fb7dac8e7a59786",
+  measurementId: "G-X680CR47MT"
+};
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>);
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- APPLICATION INITIALIZATION ---
+        
+        async function initializePortal() {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                storage = getStorage(app);
+                
+                // Set log level for debugging
+                // setLogLevel('debug');
+
+                // Listen for authentication state changes
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        // User is signed in. Check if they are a known member.
+                        await checkUserMembership(user.phoneNumber);
+                    } else {
+                        // User is signed out or not yet logged in.
+                        currentUserId = null;
+                        currentMemberData = null;
+                        memberDocId = null;
+                        renderApp(); // Show login/register view
+                    }
+                });
+
+                // Sign in the user (required for Firebase services)
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth); // Fallback for testing
+                }
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                appContainer.innerHTML = `<div class="text-red-600">Error initializing application. Please check console.</div>`;
+            }
+        }
+
+        // --- AUTHENTICATION & DATA CHECKING ---
+
+        async function checkUserMembership(phoneNumber) {
+            if (!phoneNumber) {
+                // User signed in but has no phone number (e.g., custom token, anonymous)
+                // This can happen on first load before OTP login.
+                renderApp();
+                return;
+            }
+
+            // Path to the 'companies' collection
+            const collectionPath = `/artifacts/${appId}/public/data/companies`;
+            const companiesCol = collection(db, collectionPath);
+            
+            // Query for a member with this authorized phone number
+            const q = query(companiesCol, where("authorizedMobile", "==", phoneNumber));
+            
+            try {
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    // No member found with this phone number.
+                    currentMemberData = null;
+                    memberDocId = null;
+                    // This could be a new user who just finished registration
+                    // or an existing user who is not the 'authorized' one.
+                    // For simplicity, we'll show the login screen.
+                    // If they just registered, the registration flow will handle the redirect.
+                    renderApp(); 
+                } else {
+                    // Member found.
+                    const docSnap = querySnapshot.docs[0];
+                    currentMemberData = docSnap.data();
+                    memberDocId = docSnap.id;
+                    renderApp(); // Re-render the app with the user's data
+                }
+            } catch (error) {
+                console.error("Error checking membership:", error);
+                showMessage("Error checking your membership status.", true);
+                renderApp();
+            }
+        }
+
+        // --- UI RENDERING ---
+
+        function renderApp() {
+            if (currentMemberData) {
+                // User is logged in AND is a known member
+                renderDashboard(currentMemberData);
+            } else {
+                // User is not logged in or not a known member
+                renderLoginRegisterView();
+            }
+        }
+
+        function renderLoginRegisterView() {
+            appContainer.innerHTML = `
+                <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-xl w-full max-w-2xl">
+                    <div class="text-center mb-8">
+                        <h1 class="text-3xl font-bold text-blue-800">AKITDA Ernakulam</h1>
+                        <p class="text-xl font-semibold text-gray-700 mt-1">Member Portal</p>
+                    </div>
+
+                    <!-- Tab Navigation -->
+                    <div class="mb-6">
+                        <div class="flex border-b border-gray-300">
+                            <button id="tab-new" class="flex-1 py-3 px-2 text-center font-medium text-blue-600 border-b-2 border-blue-600">
+                                New Member Registration
+                            </button>
+                            <button id="tab-existing" class="flex-1 py-3 px-2 text-center font-medium text-gray-500 hover:text-gray-700">
+                                Existing Member Login
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab Content -->
+                    <div id="tab-content">
+                        <!-- Content will be injected by tab clicks -->
+                    </div>
+                </div>
+            `;
+
+            const tabNew = document.getElementById('tab-new');
+            const tabExisting = document.getElementById('tab-existing');
+            const tabContent = document.getElementById('tab-content');
+
+            function showTab(tabName) {
+                if (tabName === 'new') {
+                    tabContent.innerHTML = renderNewMemberForm();
+                    tabNew.classList.add('text-blue-600', 'border-blue-600');
+                    tabNew.classList.remove('text-gray-500', 'hover:text-gray-700');
+                    tabExisting.classList.remove('text-blue-600', 'border-blue-600');
+                    tabExisting.classList.add('text-gray-500', 'hover:text-gray-700');
+                    setupRecaptcha();
+                    attachAuthHandlers('new');
+                } else {
+                    tabContent.innerHTML = renderExistingMemberForm();
+                    tabExisting.classList.add('text-blue-600', 'border-blue-600');
+                    tabExisting.classList.remove('text-gray-500', 'hover:text-gray-700');
+                    tabNew.classList.remove('text-blue-600', 'border-blue-600');
+                    tabNew.classList.add('text-gray-500', 'hover:text-gray-700');
+                    setupRecaptcha();
+                    attachAuthHandlers('existing');
+                }
+            }
+
+            tabNew.addEventListener('click', () => showTab('new'));
+            tabExisting.addEventListener('click', () => showTab('existing'));
+
+            // Show 'new' tab by default
+            showTab('new');
+        }
+
+        function renderNewMemberForm() {
+            return `
+                <div>
+                    <p class="text-gray-600 text-center mb-6">Enter your mobile number to begin registration. This will be the authorized number for your membership.</p>
+                    <form id="auth-form">
+                        <div class="mb-4">
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Mobile Number (with +91)</label>
+                            <input type="tel" id="phone" name="phone" placeholder="+919876543210" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div id="recaptcha-container" class="my-4 flex justify-center"></div>
+                        <button type="submit" id="send-otp-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center">
+                            Send OTP
+                        </button>
+                    </form>
+                    <form id="otp-form" class="hidden">
+                        <p class="text-gray-600 text-center mb-4">An OTP has been sent to <span id="phone-display" class="font-medium"></span>.</p>
+                        <div class="mb-4">
+                            <label for="otp" class="block text-sm font-medium text-gray-700 mb-1">Enter 6-Digit OTP</label>
+                            <input type="text" id="otp" name="otp" inputmode="numeric" maxlength="6" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <button type="submit" id="verify-otp-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center">
+                            Verify & Proceed
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function renderExistingMemberForm() {
+            return `
+                <div>
+                    <p class="text-gray-600 text-center mb-6">Enter your authorized mobile number to log in to your member dashboard.</p>
+                    <form id="auth-form">
+                        <div class="mb-4">
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Mobile Number (with +91)</label>
+                            <input type="tel" id="phone" name="phone" placeholder="+919876543210" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div id="recaptcha-container" class="my-4 flex justify-center"></div>
+                        <button type="submit" id="send-otp-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center">
+                            Send OTP
+                        </button>
+                    </form>
+                    <form id="otp-form" class="hidden">
+                        <p class="text-gray-600 text-center mb-4">An OTP has been sent to <span id="phone-display" class="font-medium"></span>.</p>
+                        <div class="mb-4">
+                            <label for="otp" class="block text-sm font-medium text-gray-700 mb-1">Enter 6-Digit OTP</label>
+                            <input type="text" id="otp" name="otp" inputmode="numeric" maxlength="6" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <button type="submit" id="verify-otp-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center">
+                            Verify & Login
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+        
+        function renderRegistrationForm(phoneNumber) {
+            appContainer.innerHTML = `
+                <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-xl w-full">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">New Member Registration</h2>
+                    <form id="registration-form">
+                        <input type="hidden" id="authorized-mobile" value="${phoneNumber}">
+                        
+                        <!-- Section 1: Company Details -->
+                        <div class="border-b border-gray-200 pb-6 mb-6">
+                            <h3 class="text-lg font-semibold text-blue-700 mb-4">Company Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="company-name" class="block text-sm font-medium text-gray-700">Company Name</label>
+                                    <input type="text" id="company-name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                                </div>
+                                <div>
+                                    <label for="company-type" class="block text-sm font-medium text-gray-700">Company Type</label>
+                                    <select id="company-type" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                                        <option value="Proprietor">Proprietor</option>
+                                        <option value="Partnership">Partnership</option>
+                                        <option value="Partnership LLP">Partnership LLP</option>
+                                        <option value="Private limited">Private Limited</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="company-address" class="block text-sm font-medium text-gray-700">Company Address</label>
+                                    <textarea id="company-address" rows="3" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required></textarea>
+                                </div>
+                                <div>
+                                    <label for="company-phone" class="block text-sm font-medium text-gray-700">Office Phone</label>
+                                    <input type="tel" id="company-phone" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                                </div>
+                                <div>
+                                    <label for="company-email" class="block text-sm font-medium text-gray-700">Office Email</label>
+                                    <input type="email" id="company-email" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                                </div>
+                                <div>
+                                    <label for="gstin-upload" class="block text-sm font-medium text-gray-700">Upload GSTIN Certificate (PDF)</label>
+                                    <input type="file" id="gstin-upload" accept=".pdf" class="mt-1 w-full text-sm text-gray-500 file:mr-4" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section 2: Member Details -->
+                        <div class="member-details-section">
+                            <h3 class="text-lg font-semibold text-blue-700 mb-4">Member / Proprietor / Partner Details</h3>
+                            <div id="member-rows-container" class="space-y-4">
+                                <!-- Member rows will be injected here -->
+                            </div>
+                            <button type="button" id="add-member-btn" class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-lg hover:bg-blue-200 hidden">
+                                + Add Another Member
+                            </button>
+                        </div>
+
+                        <!-- Submission -->
+                        <div class="mt-8 pt-6 border-t border-gray-200">
+                            <button type="submit" id="submit-registration-btn" class="w-full bg-green-600 text-white py-3 px-6 rounded-lg font-semibold text-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                                Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            // Add one member row by default
+            addMemberRow();
+            
+            const companyTypeSelect = document.getElementById('company-type');
+            const addMemberBtn = document.getElementById('add-member-btn');
+            
+            // Show 'Add Member' button if not Proprietor
+            companyTypeSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'Proprietor') {
+                    addMemberBtn.classList.add('hidden');
+                    // Optional: remove extra member rows if user switches back to Proprietor
+                    const rows = document.querySelectorAll('.member-row');
+                    rows.forEach((row, index) => {
+                        if(index > 0) row.remove();
+                    });
+                } else {
+                    addMemberBtn.classList.remove('hidden');
+                }
+            });
+            
+            addMemberBtn.addEventListener('click', addMemberRow);
+            
+            // Attach form submission handler
+            document.getElementById('registration-form').addEventListener('submit', handleRegistrationSubmit);
+        }
+
+        function addMemberRow() {
+            const container = document.getElementById('member-rows-container');
+            const rowId = `member-row-${container.children.length}`;
+            const isFirstRow = container.children.length === 0;
+
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.className = 'member-row grid grid-cols-1 md:grid-cols-3 gap-4 border border-gray-200 p-4 rounded-lg relative';
+            
+            row.innerHTML = `
+                <div class="md:col-span-3">
+                    <label for="${rowId}-name" class="block text-sm font-medium text-gray-700">${isFirstRow ? 'Proprietor/Member Name' : 'Member Name'}</label>
+                    <input type="text" id="${rowId}-name" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                </div>
+                <div>
+                    <label for="${rowId}-phone" class="block text-sm font-medium text-gray-700">Personal Phone</label>
+                    <input type="tel" id="${rowId}-phone" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                </div>
+                <div>
+                    <label for="${rowId}-email" class="block text-sm font-medium text-gray-700">Personal Email</label>
+                    <input type="email" id="${rowId}-email" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                </div>
+                <div>
+                    <label for="${rowId}-photo" class="block text-sm font-medium text-gray-700">Passport Photo (JPG/PNG)</label>
+                    <input type="file" id="${rowId}-photo" accept="image/jpeg, image/png" class="mt-1 w-full text-sm text-gray-500 file:mr-4" required>
+                </div>
+                ${!isFirstRow ? `
+                <button type="button" onclick="document.getElementById('${rowId}').remove()" class="absolute top-2 right-2 text-red-500 hover:text-red-700">
+                    &times;
+                </button>` : ''}
+            `;
+            container.appendChild(row);
+        }
+        
+        function renderDashboard(memberData) {
+            const currentYear = new Date().getFullYear();
+            const financialYear = (new Date().getMonth() < 3) ? currentYear - 1 : currentYear; // FY starts April
+            
+            const isPaid = memberData.financialYearPaid === financialYear;
+            const status = memberData.status;
+
+            let statusMessage = '';
+            let statusColor = '';
+
+            if (status === 'active') {
+                if (isPaid) {
+                    statusMessage = `Active (Paid for ${financialYear}-${financialYear+1})`;
+                    statusColor = 'text-green-600 bg-green-100';
+                } else {
+                    statusMessage = `Subscription Pending (for ${financialYear}-${financialYear+1})`;
+                    statusColor = 'text-yellow-600 bg-yellow-100';
+                }
+            } else if (status === 'pending_approval') {
+                statusMessage = 'Application Submitted - Pending Approval';
+                statusColor = 'text-blue-600 bg-blue-100';
+            } else if (status === 'pending_payment') {
+                statusMessage = 'Application Approved - Pending Payment';
+                statusColor = 'text-yellow-600 bg-yellow-100';
+            } else if (status === 'pending_payment_verification') {
+                statusMessage = 'Payment Submitted - Pending Verification';
+                statusColor = 'text-blue-600 bg-blue-100';
+            } else if (status === 'rejected') {
+                statusMessage = 'Application Rejected';
+                statusColor = 'text-red-600 bg-red-100';
+            } else {
+                statusMessage = `Status: ${status}`;
+                statusColor = 'text-gray-600 bg-gray-100';
+            }
+
+            appContainer.innerHTML = `
+                <div class="bg-white p-8 sm:p-12 rounded-2xl shadow-xl w-full">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">${memberData.companyName}</h2>
+                            <p class="text-gray-600">${memberData.companyType}</p>
+                        </div>
+                        <button id="logout-btn" class="px-4 py-2 bg-red-100 text-red-700 text-sm font-medium rounded-lg hover:bg-red-200">
+                            Logout
+                        </button>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800">Membership Status</h3>
+                        <div class="mt-2 p-4 rounded-lg ${statusColor} font-semibold">
+                            ${statusMessage}
+                        </div>
+                    </div>
+
+                    <div id="dashboard-content">
+                        <!-- Content based on status -->
+                    </div>
+                </div>
+            `;
+            
+            const contentContainer = document.getElementById('dashboard-content');
+            
+            if (status === 'active' && !isPaid) {
+                // Active member, but needs to renew
+                contentContainer.innerHTML = renderRenewalScreen(memberData);
+            } else if (status === 'pending_approval') {
+                contentContainer.innerHTML = `
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-gray-800">What's Next?</h4>
+                        <p class="text-gray-600 mt-2">Your application has been submitted successfully. The AKITDA committee (President or Secretary) will review your details and documents.</p>
+                        <p class="text-gray-600 mt-2">You will be notified via SMS or Email once your application is approved, after which you will be able to pay the admission and subscription fees.</p>
+                        <p class="text-gray-600 mt-4">Thank you for your patience.</p>
+                    </div>
+                `;
+            } else if (status === 'pending_payment') {
+                // Approved, needs to pay for the first time
+                contentContainer.innerHTML = renderPaymentScreen(memberData, 'new_member');
+            } else if (status === 'pending_payment_verification') {
+                 contentContainer.innerHTML = `
+                    <div class="bg-blue-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-blue-800">Payment Submitted</h4>
+                        <p class="text-blue-700 mt-2">We have received your payment submission. Our team will verify the transaction (this may take 24-48 hours) and activate your membership.</p>
+                        <p class="text-blue-700 mt-2">You will be notified once your membership is fully active.</p>
+                    </div>
+                `;
+            } else if (status === 'active' && isPaid) {
+                // Fully active and paid
+                contentContainer.innerHTML = `
+                    <div class="bg-gray-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-gray-800">Welcome, Member!</h4>
+                        <p class="text-gray-600 mt-2">Your membership is active and your subscription for the current financial year is paid.</p>
+                        <p class="text-gray-600 mt-2">We will notify you when renewals for the next financial year begin (April ${financialYear + 1}).</p>
+                    </div>
+                `;
+            } else if (status === 'rejected') {
+                 contentContainer.innerHTML = `
+                    <div class="bg-red-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-red-800">Application Status: Rejected</h4>
+                        <p class="text-red-700 mt-2">We regret to inform you that your membership application could not be approved at this time.</p>
+                        <p class="text-red-700 mt-2">Please contact the AKITDA office for further details.</p>
+                        <p class="text-red-700 mt-4 font-medium">Email: [Office Email]</p>
+                        <p class="text-red-700 font-medium">Phone: [Office Phone]</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('logout-btn').addEventListener('click', handleLogout);
+            
+            // Attach payment verification handler if button exists
+            const verifyBtn = document.getElementById('verify-payment-btn');
+            if(verifyBtn) {
+                verifyBtn.addEventListener('click', handlePaymentVerification);
+            }
+        }
+        
+        function renderPaymentScreen(memberData, type = 'new_member') {
+            const admissionFee = (type === 'new_member') ? 2000.00 : 0.00;
+            const subscriptionFee = 1200.00;
+            const tax = subscriptionFee * 0.18;
+            const total = admissionFee + subscriptionFee + tax;
+            
+            return `
+                <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">${type === 'new_member' ? 'Complete Your Registration' : 'Renew Your Membership'}</h3>
+                    <p class="text-gray-600 mb-4">Please pay the following fees to activate your membership for the current financial year.</p>
+                    
+                    <!-- Fee Breakdown -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 max-w-md">
+                        <h4 class="font-semibold mb-3">Fee Breakdown</h4>
+                        <div class="space-y-2 text-sm">
+                            ${type === 'new_member' ? `
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Admission Fee:</span>
+                                <span class="font-medium text-gray-800">Rs. 2000.00</span>
+                            </div>` : ''}
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Subscription Fee:</span>
+                                <span class="font-medium text-gray-800">Rs. 1200.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">GST (18% on Subscription):</span>
+                                <span class="font-medium text-gray-800">Rs. ${tax.toFixed(2)}</span>
+                            </div>
+                            <div class="flex justify-between text-base font-semibold border-t border-gray-300 pt-2 mt-2">
+                                <span class="text-gray-900">Total Amount Payable:</span>
+                                <span class="text-blue-600">Rs. ${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Instructions -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-2">Option 1: Pay via UPI</h4>
+                            <p class="text-gray-600">Scan the QR code with your UPI app or pay to the UPI ID.</p>
+                            <div class="mt-2 p-4 bg-gray-100 rounded-lg text-center">
+                                <!-- Placeholder for QR Code -->
+                                <img src="https://placehold.co/200x200/FFFFFF/333333?text=UPI+QR+Code&font=inter" alt="UPI QR Code" class="mx-auto rounded-lg mb-2"
+                                     onerror="this.src='https://placehold.co/200x200/FFFFFF/333333?text=UPI+QR+Code&font=inter'">
+                                <p class="font-mono font-medium text-gray-800">8547026604@okbizaxis</p>
+                                <p class="text-sm text-gray-600">(GPay No: 85470 26604)</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-2">Option 2: Bank Transfer (NEFT/IMPS)</h4>
+                            <p class="text-gray-600 mb-2">Transfer the amount to the association's bank account.</p>
+                            <div class="p-4 bg-gray-100 rounded-lg space-y-1 text-sm">
+                                <p><span class="font-medium text-gray-700">Account Name:</span> All Kerala IT Dealers Association</p>
+                                <p><span class="font-medium text-gray-700">Bank:</span> State Bank of India</p>
+                                <p><span class="font-medium text-gray-700">A/c No:</span> 67000776042</p>
+                                <p><span class="font-medium text-gray-700">IFSC:</span> SBIN0070658</p>
+                                <p><span class="font-medium text-gray-700">Branch:</span> Panampilly Nagar</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Verification -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                         <h4 class="font-semibold text-gray-800 mb-2">After Payment</h4>
+                         <p class="text-gray-600 mb-4">After completing the payment, please click the button below. Our team will verify your payment and activate your membership. This may take 24-48 hours.</p>
+                         <button id="verify-payment-btn" data-payment-type="${type}" class="w-full md:w-auto px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center">
+                            I Have Paid
+                         </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRenewalScreen(memberData) {
+            // This is just a wrapper for the payment screen, but for 'renewal' type
+            return renderPaymentScreen(memberData, 'renewal');
+        }
+
+        // --- AUTH LOGIC ---
+
+        function setupRecaptcha() {
+            try {
+                if (recaptchaVerifier) {
+                     // If verifier exists, clear the container first
+                    const container = document.getElementById('recaptcha-container');
+                    if (container) container.innerHTML = '';
+                    recaptchaVerifier.clear();
+                }
+                recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'normal',
+                    'callback': (response) => {
+                        // reCAPTCHA solved
+                        showMessage('reCAPTCHA verified.', false);
+                    },
+                    'expired-callback': () => {
+                        showMessage('reCAPTCHA expired, please try again.', true);
+                    }
+                });
+                // Add a more detailed catch block for the render promise
+                recaptchaVerifier.render().catch(err => {
+                    console.error("Recaptcha render error:", err);
+                    const container = document.getElementById('recaptcha-container');
+                    let friendlyError = `Could not initialize reCAPTCHA: ${err.message}`;
+
+                    if (err.code === 'auth/internal-error') {
+                        friendlyError = "reCAPTCHA Error: 'auth/internal-error'. This is a configuration error. Please go to your Firebase project's Authentication > Settings > Authorized Domains and add this website's domain. The login will not work until this is fixed.";
+                        
+                        // NEW CHANGE: Display error more prominently in the main tab content area
+                        const tabContent = document.getElementById('tab-content');
+                        if (tabContent) {
+                            tabContent.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">
+                                <h4 class="font-bold">Login System Configuration Error</h4>
+                                <p class="mt-2 text-sm">${friendlyError}</p>
+                                <p class="mt-2 text-sm font-medium">Please follow the step-by-step guide provided in the chat to enable 'Phone' as a sign-in method and add your domain in the Firebase Console.</p>
+                            </div>`;
+                        } else if (container) {
+                             // Fallback if tab-content is not found
+                             container.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg text-sm">${friendlyError}</div>`;
+                        }
+
+                    } else {
+                         if(container) {
+                            container.innerHTML = `<div class="p-4 bg-yellow-100 text-yellow-700 rounded-lg text-sm">${friendlyError}</div>`;
+                        }
+                    }
+                    showMessage(friendlyError, true);
+                });
+            } catch(e) {
+                console.error("Recaptcha setup error:", e);
+                showMessage(`reCAPTCHA setup failed: ${e.message}`, true);
+            }
+        }
+
+        function attachAuthHandlers(mode) { // mode is 'new' or 'existing'
+            const authForm = document.getElementById('auth-form');
+            const otpForm = document.getElementById('otp-form');
+            const sendOtpBtn = document.getElementById('send-otp-btn');
+            const verifyOtpBtn = document.getElementById('verify-otp-btn');
+            
+            // Check if authForm exists, if not, the error is already displayed
+            if (!authForm) return;
+
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const phoneInput = document.getElementById('phone');
+                const phoneNumber = phoneInput.value;
+
+                if (!/^\+91[0-9]{10}$/.test(phoneNumber)) {
+                    showMessage('Please enter a valid mobile number with +91 country code (e.g., +919876543210).', true);
+                    return;
+                }
+                
+                // Check if this number is already registered (for 'new' mode)
+                if (mode === 'new') {
+                    const isRegistered = await isPhoneNumberRegistered(phoneNumber);
+                    if (isRegistered) {
+                        showMessage('This phone number is already associated with a membership. Please use the "Existing Member Login" tab.', true);
+                        return;
+                    }
+                }
+                
+                setButtonLoading(sendOtpBtn, true, 'Sending...');
+
+                try {
+                    confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+                    
+                    // Success
+                    showMessage('OTP sent successfully!', false);
+                    authForm.classList.add('hidden');
+                    otpForm.classList.remove('hidden');
+                    document.getElementById('phone-display').textContent = phoneNumber;
+
+                } catch (error) {
+                    console.error("Error sending OTP:", error);
+                    showMessage(`Error sending OTP: ${error.message}`, true);
+                    // Reset reCAPTCHA
+                    setupRecaptcha();
+                } finally {
+                    setButtonLoading(sendOtpBtn, false, 'Send OTP');
+                }
+            });
+
+            otpForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const otpInput = document.getElementById('otp');
+                const otp = otpInput.value;
+
+                if (otp.length !== 6) {
+                    showMessage('Please enter a valid 6-digit OTP.', true);
+                    return;
+                }
+                
+                setButtonLoading(verifyOtpBtn, true, 'Verifying...');
+                
+                try {
+                    const credential = await confirmationResult.confirm(otp);
+                    const user = credential.user;
+                    
+                    showMessage('Login successful!', false);
+                    
+                    if (mode === 'new') {
+                        // New user, send to registration form
+                        renderRegistrationForm(user.phoneNumber);
+                    } else {
+                        // Existing user, checkUserMembership will be re-triggered
+                        // by onAuthStateChanged, which will find their data
+                        // and render the dashboard.
+                        // We can force a check just in case.
+                        await checkUserMembership(user.phoneNumber);
+                    }
+                    
+                } catch (error) {
+                    console.error("Error verifying OTP:", error);
+                    showMessage(`Invalid OTP or error: ${error.message}`, true);
+                } finally {
+                    setButtonLoading(verifyOtpBtn, false, mode === 'new' ? 'Verify & Proceed' : 'Verify & Login');
+                }
+            });
+        }
+        
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+                // onAuthStateChanged will handle the UI reset
+                showMessage('Logged out successfully.', false);
+            } catch (error) {
+                console.error("Logout Error:", error);
+                showMessage('Error logging out.', true);
+            }
+        }
+        
+        async function isPhoneNumberRegistered(phoneNumber) {
+            const collectionPath = `/artifacts/${appId}/public/data/companies`;
+            const q = query(collection(db, collectionPath), where("authorizedMobile", "==", phoneNumber));
+            const querySnapshot = await getDocs(q);
+            return !querySnapshot.empty;
+        }
+
+        // --- REGISTRATION & DATA HANDLING ---
+
+        async function handleRegistrationSubmit(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submit-registration-btn');
+            setButtonLoading(submitBtn, true, 'Submitting...');
+            
+            try {
+                // 1. Collect all form data
+                const companyData = {
+                    companyName: document.getElementById('company-name').value,
+                    companyType: document.getElementById('company-type').value,
+                    companyAddress: document.getElementById('company-address').value,
+                    companyPhone: document.getElementById('company-phone').value,
+                    companyEmail: document.getElementById('company-email').value,
+                    authorizedMobile: document.getElementById('authorized-mobile').value,
+                    status: 'pending_approval', // Initial status
+                    financialYearPaid: null,
+                    createdAt: serverTimestamp(),
+                    gstinCertUrl: '',
+                };
+
+                // 2. Collect member data
+                const memberRows = document.querySelectorAll('.member-row');
+                let membersData = [];
+                for (const row of memberRows) {
+                    const rowId = row.id;
+                    const member = {
+                        name: document.getElementById(`${rowId}-name`).value,
+                        phone: document.getElementById(`${rowId}-phone`).value,
+                        email: document.getElementById(`${rowId}-email`).value,
+                        photoUrl: '',
+                    };
+                    membersData.push(member);
+                }
+                
+                // 3. Handle File Uploads
+                // Create a unique ID for this company
+                const companyDocId = doc(collection(db, 'id_generator')).id; // Just to get a unique ID
+                
+                // 3a. Upload GSTIN PDF
+                const gstinFile = document.getElementById('gstin-upload').files[0];
+                if (!gstinFile) throw new Error('GSTIN Certificate is required.');
+                const gstinRef = ref(storage, `artifacts/${appId}/companies/${companyDocId}/gstin.pdf`);
+                await uploadBytes(gstinRef, gstinFile);
+                companyData.gstinCertUrl = await getDownloadURL(gstinRef);
+                
+                // 3b. Upload Member Photos
+                for (let i = 0; i < memberRows.length; i++) {
+                    const rowId = memberRows[i].id;
+                    const photoFile = document.getElementById(`${rowId}-photo`).files[0];
+                    if (!photoFile) throw new Error(`Passport photo for ${membersData[i].name} is required.`);
+                    
+                    const photoExt = photoFile.name.split('.').pop();
+                    const photoRef = ref(storage, `artifacts/${appId}/companies/${companyDocId}/member_${i}_photo.${photoExt}`);
+                    await uploadBytes(photoRef, photoFile);
+                    membersData[i].photoUrl = await getDownloadURL(photoRef);
+                }
+
+                // 4. Save data to Firestore
+                // We store members as a subcollection of the company
+                
+                // 4a. Save main company document
+                const collectionPath = `/artifacts/${appId}/public/data/companies`;
+                const companyDocRef = doc(db, collectionPath, companyDocId);
+                await setDoc(companyDocRef, companyData);
+                
+                // 4b. Save members in a subcollection
+                const membersColPath = `${collectionPath}/${companyDocId}/members`;
+                for (const member of membersData) {
+                    const memberDocRef = doc(collection(db, membersColPath));
+                    await setDoc(memberDocRef, member);
+                }
+                
+                // 5. Success
+                showMessage('Registration submitted successfully for approval!', false);
+                // Update local state and show dashboard
+                currentMemberData = companyData;
+                memberDocId = companyDocId;
+                renderDashboard(currentMemberData);
+                
+            } catch (error) {
+                console.error("Registration Error:", error);
+                showMessage(`Registration failed: ${error.message}`, true);
+            } finally {
+                setButtonLoading(submitBtn, false, 'Submit Application');
+            }
+        }
+        
+        async function handlePaymentVerification(e) {
+            const btn = e.target;
+            const paymentType = btn.dataset.paymentType; // 'new_member' or 'renewal'
+            setButtonLoading(btn, true, 'Submitting...');
+            
+            try {
+                // Get the current financial year
+                const currentYear = new Date().getFullYear();
+                const financialYear = (new Date().getMonth() < 3) ? currentYear - 1 : currentYear;
+
+                const docRef = doc(db, `/artifacts/${appId}/public/data/companies`, memberDocId);
+                
+                let newStatus = 'pending_payment_verification'; // Always go to verification
+                
+                await updateDoc(docRef, {
+                    status: newStatus,
+                    lastPaymentSubmittedAt: serverTimestamp(),
+                    lastPaymentSubmittedForYear: financialYear,
+                    lastPaymentTypeSubmitted: paymentType // Track if it was a new or renewal payment
+                });
+                
+                showMessage('Payment submitted for verification. We will update your status soon.', false);
+                
+                // Refresh dashboard
+                currentMemberData.status = newStatus;
+                renderDashboard(currentMemberData);
+
+            } catch(error) {
+                console.error("Payment verification error:", error);
+                showMessage(`Error submitting payment: ${error.message}`, true);
+            } finally {
+                setButtonLoading(btn, false, 'I Have Paid');
+            }
+        }
+
+        // --- UTILITY FUNCTIONS ---
+
+        function setButtonLoading(button, isLoading, loadingText = "Loading...") {
+            if (isLoading) {
+                button.disabled = true;
+                button.innerHTML = `<span class="spinner mr-2"></span> ${loadingText}`;
+            } else {
+                button.disabled = false;
+                button.innerHTML = loadingText; // Restore original text
+            }
+        }
+
+        function showMessage(message, isError = false) {
+            messageText.textContent = message;
+            if (isError) {
+                messageToast.classList.remove('bg-green-600', 'translate-x-[200%]');
+                messageToast.classList.add('bg-red-600', 'translate-x-0');
+            } else {
+                messageToast.classList.remove('bg-red-600', 'translate-x-[200%]');
+                messageToast.classList.add('bg-green-600', 'translate-x-0');
+            }
+            
+            messageToast.classList.remove('hidden');
+
+            // Hide after 5 seconds
+            setTimeout(() => {
+                messageToast.classList.remove('translate-x-0');
+                messageToast.classList.add('translate-x-[200%]');
+            }, 5000);
+        }
+
+        // --- START THE APP ---
+        initializePortal();
+
+    </script>
+</body>
+</html>
+

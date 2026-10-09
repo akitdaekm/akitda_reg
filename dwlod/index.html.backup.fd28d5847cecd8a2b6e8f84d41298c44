@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Kerala IT Dealers Association General Body 2025 - Registration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #qrcode img, #qrcode canvas { margin: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-2xl mx-auto my-8">
+
+        <div id="form-view">
+            <div class="text-center mb-8">
+                <img src="akitda-logo.png" alt="AKITDA Logo" class="mx-auto mb-4 h-24" onerror="this.style.display='none'">
+                <h1 class="text-3xl font-bold text-gray-800 leading-tight">
+                    <span class="text-orange-500">All Kerala IT Dealers Association</span>
+                    <span class="block">General Body 2025</span>
+                </h1>
+                <p class="text-gray-600 mt-2 text-lg">Registration</p>
+            </div>
+
+            <form id="registrationForm" class="space-y-6">
+                <div>
+                    <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="company" class="block text-sm font-medium text-gray-700">Company Name</label>
+                    <input type="text" id="company" name="company" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="designation" class="block text-sm font-medium text-gray-700">Designation</label>
+                    <select id="designation" name="designation" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Member">Member</option>
+                        <option value="State Executive Member">State Executive Member</option>
+                        <option value="Distributor">Distributor</option>
+                        <option value="Vendor">Vendor</option>
+                        <option value="Guest">Guest</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="district" class="block text-sm font-medium text-gray-700">District</label>
+                    <select id="district" name="district" required class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                        <option value="Kollam">Kollam</option>
+                        <option value="Pathanamthitta">Pathanamthitta</option>
+                        <option value="Alappuzha">Alappuzha</option>
+                        <option value="Kottayam">Kottayam</option>
+                        <option value="Idukki">Idukki</option>
+                        <option value="Ernakulam" selected>Ernakulam</option>
+                        <option value="Thrissur">Thrissur</option>
+                        <option value="Palakkad">Palakkad</option>
+                        <option value="Malappuram">Malappuram</option>
+                        <option value="Kozhikode">Kozhikode</option>
+                        <option value="Wayanad">Wayanad</option>
+                        <option value="Kannur">Kannur</option>
+                        <option value="Kasaragod">Kasaragod</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" name="email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" id="submitButton" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Generate Entry Pass</button>
+            </form>
+             <p id="statusMessage" class="text-center mt-4 font-medium hidden"></p>
+        </div>
+
+        <div id="qr-result-view" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Registration Successful!</h2>
+            <p class="text-gray-600 mb-6">Your entry pass is ready. Please download or share it.</p>
+            <div id="qrcode" class="p-4 bg-white border rounded-lg inline-block"></div>
+            <div id="member-details" class="mt-6 text-center bg-gray-50 p-4 rounded-lg"></div>
+            <div class="mt-8 space-y-3 sm:space-y-0 sm:flex sm:space-x-4 justify-center">
+                <button id="downloadBtn" class="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition duration-300">Download Pass</button>
+                <button id="shareBtn" class="w-full sm:w-auto bg-teal-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-600 transition duration-300">Share Pass</button>
+                <button id="registerAnotherBtn" class="w-full sm:w-auto bg-gray-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-700 transition duration-300">Register Another Member</button>
+            </div>
+             <p id="shareMessage" class="text-center mt-4 text-sm text-gray-500 hidden"></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // IMPORTANT: PASTE YOUR GOOGLE APPS SCRIPT URL HERE
+            const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxsf5fDxA0l9vLX0ClcPVEjzMRPzSy78-YnotsiYBVmh7Mdqbqjn9MR0RhDvrgwrqz6/exec';
+
+            const registrationForm = document.getElementById('registrationForm');
+            const formView = document.getElementById('form-view');
+            const qrResultView = document.getElementById('qr-result-view');
+            const qrcodeContainer = document.getElementById('qrcode');
+            const memberDetailsContainer = document.getElementById('member-details');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const shareBtn = document.getElementById('shareBtn');
+            const registerAnotherBtn = document.getElementById('registerAnotherBtn');
+            const statusMessage = document.getElementById('statusMessage');
+            const shareMessage = document.getElementById('shareMessage');
+            const submitButton = document.getElementById('submitButton');
+
+            if (SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL' || !SCRIPT_URL) {
+                statusMessage.innerHTML = `<b>Configuration Needed:</b> Please open this file in a text editor and replace 'YOUR_GOOGLE_APPS_SCRIPT_URL' with the actual URL you received after deploying your Google Apps Script.`;
+                statusMessage.className = 'text-center mt-4 font-medium text-red-600';
+                statusMessage.classList.remove('hidden');
+                submitButton.disabled = true;
+            }
+
+            registrationForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                if (submitButton.disabled) return;
+
+                submitButton.disabled = true;
+                submitButton.textContent = 'Registering...';
+
+                const formData = new FormData(registrationForm);
+                const data = {
+                    name: formData.get('fullName'),
+                    company: formData.get('company'),
+                    designation: formData.get('designation'),
+                    district: formData.get('district'),
+                    phone: formData.get('phone'),
+                    email: formData.get('email')
+                };
+
+                statusMessage.textContent = 'Saving registration... Please wait.';
+                statusMessage.className = 'text-center mt-4 font-medium text-blue-600';
+                statusMessage.classList.remove('hidden');
+                
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.status !== 'success') throw new Error(result.message || 'Unknown error');
+                        console.log('Success:', result.message);
+                        statusMessage.classList.add('hidden');
+                        generateQRCodeAndPass(data);
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                        statusMessage.textContent = 'Error: Could not save data. Please try again.';
+                        statusMessage.className = 'text-center mt-4 font-medium text-red-600';
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Generate Entry Pass';
+                    });
+            });
+
+            function generateQRCodeAndPass(data) {
+                qrcodeContainer.innerHTML = '';
+                const qrData = [data.name, data.company, data.designation, data.district, data.phone, data.email].join('|');
+                new QRCode(qrcodeContainer, {
+                    text: qrData,
+                    width: 256,
+                    height: 256,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+
+                setTimeout(() => {
+                    const qrImg = qrcodeContainer.querySelector('img');
+                    if (!qrImg) return;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 256;
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous";
+                    img.src = qrImg.src;
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0);
+                        const centerX = canvas.width / 2, centerY = canvas.height / 2;
+                        const text = "AKITDA";
+                        ctx.font = 'bold 36px Inter, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        const textMetrics = ctx.measureText(text);
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(centerX - textMetrics.width / 2 - 10, centerY - 36 / 2 - 5, textMetrics.width + 20, 36 + 10);
+                        ctx.fillStyle = '#F97316';
+                        ctx.fillText(text, centerX, centerY);
+                        qrcodeContainer.innerHTML = ''; 
+                        qrcodeContainer.appendChild(canvas);
+                    }
+                }, 100);
+
+                memberDetailsContainer.innerHTML = `
+                    <p class="font-bold text-lg">${data.name}</p>
+                    <p class="font-bold text-lg">${data.company}</p>
+                    <p>${data.designation}</p>
+                    <p>${data.phone}</p>
+                `;
+
+                formView.classList.add('hidden');
+                qrResultView.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            function generatePassCanvas() {
+                return new Promise((resolve, reject) => {
+                    const qrCanvas = qrcodeContainer.querySelector('canvas');
+                    if (!qrCanvas) return reject("Could not find QR Code canvas.");
+
+                    const passCanvas = document.createElement('canvas');
+                    const ctx = passCanvas.getContext('2d');
+                    const qrSize = 256, padding = 20, boldLineHeight = 28, regularLineHeight = 24, maxWidth = qrSize;
+                    const name = document.getElementById('fullName').value, company = document.getElementById('company').value;
+                    const designation = document.getElementById('designation').value, phone = document.getElementById('phone').value;
+                    
+                    ctx.font = 'bold 18px Inter, sans-serif'; 
+                    const companyLines = getWrappedLines(ctx, company, maxWidth);
+                    const detailsHeight = boldLineHeight + (companyLines.length * boldLineHeight) + regularLineHeight + regularLineHeight;
+                    passCanvas.width = qrSize + (padding * 2);
+                    passCanvas.height = qrSize + detailsHeight + (padding * 3);
+
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, passCanvas.width, passCanvas.height);
+                    ctx.drawImage(qrCanvas, padding, padding, qrSize, qrSize);
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(padding, padding, qrSize, qrSize);
+
+                    ctx.fillStyle = '#000000';
+                    ctx.textAlign = 'center';
+                    let currentY = qrSize + padding * 2;
+                    const centerX = passCanvas.width / 2;
+                    
+                    ctx.font = 'bold 18px Inter, sans-serif';
+                    ctx.fillText(name, centerX, currentY);
+                    currentY += boldLineHeight;
+                    companyLines.forEach(line => {
+                        ctx.fillText(line, centerX, currentY);
+                        currentY += boldLineHeight;
+                    });
+                    
+                    ctx.font = '16px Inter, sans-serif';
+                    ctx.fillText(designation, centerX, currentY);
+                    currentY += regularLineHeight;
+                    ctx.fillText(phone, centerX, currentY);
+
+                    resolve(passCanvas);
+                });
+            }
+
+            function getWrappedLines(context, text, maxWidth) {
+                const words = text.split(' '), lines = [];
+                let currentLine = '';
+                for (let i = 0; i < words.length; i++) {
+                    const word = words[i], testLine = currentLine + word + ' ';
+                    if (context.measureText(testLine).width > maxWidth && i > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = word + ' ';
+                    } else { currentLine = testLine; }
+                }
+                lines.push(currentLine.trim());
+                return lines;
+            }
+
+            downloadBtn.addEventListener('click', async function() {
+                try {
+                    const passCanvas = await generatePassCanvas();
+                    const link = document.createElement('a');
+                    link.href = passCanvas.toDataURL('image/jpeg', 0.9);
+                    const nameForFile = document.getElementById('fullName').value.replace(/ /g, '_') || 'AKITDA_Pass';
+                    link.download = `AKITDA-Entry-Pass-${nameForFile}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error("Download failed:", error);
+                    shareMessage.textContent = "Download failed. Please try again.";
+                    shareMessage.className = 'text-center mt-4 text-sm text-red-600';
+                    shareMessage.classList.remove('hidden');
+                }
+            });
+
+            shareBtn.addEventListener('click', async function() {
+                shareMessage.classList.add('hidden');
+                if (!navigator.share) {
+                    shareMessage.textContent = "Sharing is not supported on this browser. Please download the pass and share it manually.";
+                    shareMessage.className = 'text-center mt-4 text-sm text-yellow-600';
+                    shareMessage.classList.remove('hidden');
+                    return;
+                }
+
+                try {
+                    const passCanvas = await generatePassCanvas();
+                    passCanvas.toBlob(async (blob) => {
+                        const nameForFile = (document.getElementById('fullName').value.replace(/ /g, '_') || 'AKITDA_Pass') + '.jpg';
+                        const file = new File([blob], nameForFile, { type: 'image/jpeg' });
+                        const shareData = {
+                            files: [file],
+                            title: 'AKITDA Entry Pass',
+                            text: `Here is the entry pass for ${document.getElementById('fullName').value}.`,
+                        };
+                        if (navigator.canShare && navigator.canShare(shareData)) {
+                            await navigator.share(shareData);
+                        } else {
+                            throw new Error("Cannot share this file.");
+                        }
+                    }, 'image/jpeg', 0.9);
+                } catch (error) {
+                    console.error('Share failed:', error);
+                    shareMessage.textContent = 'Sharing was cancelled or failed.';
+                    shareMessage.className = 'text-center mt-4 text-sm text-red-600';
+                    shareMessage.classList.remove('hidden');
+                }
+            });
+
+            registerAnotherBtn.addEventListener('click', function() {
+                registrationForm.reset();
+                statusMessage.classList.add('hidden');
+                shareMessage.classList.add('hidden');
+                qrResultView.classList.add('hidden');
+                formView.classList.remove('hidden');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Generate Entry Pass';
+            });
+        });
+    </script>
+
+</body>
+</html>
+

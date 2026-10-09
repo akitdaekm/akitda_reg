@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKITDA Badge Scanner & Printer (USB)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Print-specific styles for 60x60 mm label */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                /* Explicitly set size to fit page, accounting for margin */
+                width: 59.8mm; 
+                height: 59.8mm;
+                display: flex;
+                flex-direction: column;
+                justify-content: center; /* Center vertically */
+                align-items: center;   /* Center horizontally */
+                overflow: hidden; /* Prevent content from spilling to new pages */
+            }
+            #print-qrcode-container canvas {
+                 /* Updated to 30mm */
+                 width: 30mm !important;
+                 height: 30mm !important;
+            }
+            #print-details {
+                /* Added margin-top for spacing and increased base font */
+                margin-top: 1.5mm;
+                font-size: 10pt !important;
+            }
+        }
+        @page {
+            /* Updated page size to 60mm x 60mm */
+            size: 60mm 60mm;
+            /* Reduced margin for printing */
+            margin: 0.1mm;
+        }
+    </style>
+</head>
+<body class="bg-gray-200 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-xl mx-auto">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">AKITDA Badge Scanner (USB)</h1>
+            <p class="text-gray-600">Click the box below and begin scanning badges.</p>
+        </div>
+
+        <!-- Scanner Input -->
+        <div class="my-4">
+            <input type="text" id="scannerInput" placeholder="Click here and scan a badge..." class="w-full text-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg">
+        </div>
+
+        <!-- Status & Instructions -->
+        <div class="text-center p-4 bg-gray-50 rounded-lg min-h-[6rem]">
+            <p id="statusMessage" class="font-medium text-gray-700 text-lg">Waiting for scan...</p>
+        </div>
+        <div class="mt-4">
+             <h3 class="text-sm font-medium text-gray-700 text-center">Printer Setup:</h3>
+             <p class="text-xs text-gray-600 mt-1 text-center">Ensure your label printer is set as the default printer in your computer's System Settings.</p>
+        </div>
+    </div>
+
+    <!-- Hidden area for printing -->
+    <div id="print-area" class="hidden">
+        <div id="print-qrcode-container" class="text-center"></div>
+        <div id="print-details" class="text-center font-sans"></div>
+    </div>
+
+    <!-- Scripts at the end of the body -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const scannerInput = document.getElementById('scannerInput');
+            const statusMessage = document.getElementById('statusMessage');
+            const printQRCodeContainer = document.getElementById('print-qrcode-container');
+            const printDetailsContainer = document.getElementById('print-details');
+            
+            let wakeLock = null;
+
+            // --- WAKE LOCK ---
+            const requestWakeLock = async () => {
+                if ('wakeLock' in navigator) {
+                    try {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Screen Wake Lock is active.');
+                        statusMessage.textContent = 'Scanner Ready (Screen awake)';
+                    } catch (err) {
+                        console.log('Could not acquire wake lock:', err.message);
+                        statusMessage.textContent = 'Scanner Ready';
+                    }
+                }
+            };
+            
+            // Request wake lock when the user clicks the input
+            scannerInput.addEventListener('focus', requestWakeLock);
+
+            // --- SCANNER INPUT LISTENER ---
+            scannerInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Prevents form submission
+                    const scannedData = scannerInput.value.trim();
+                    if (scannedData) {
+                        handleScannedCode(scannedData);
+                    }
+                }
+            });
+            
+            function handleScannedCode(data) {
+                statusMessage.textContent = 'Code detected! Processing...';
+                
+                try {
+                    const parts = data.split('|');
+                    if (parts.length < 5) { // Expect at least 5 parts for the details
+                        throw new Error("Invalid QR code format. Not enough data parts.");
+                    }
+                    const [name, company, designation, district, phone] = parts;
+
+                    // --- Prepare for printing ---
+                    printQRCodeContainer.innerHTML = '';
+                    // Updated size to approx 30mm
+                    new QRCode(printQRCodeContainer, {
+                        text: data,
+                        width: 114, 
+                        height: 114,
+                        correctLevel: QRCode.CorrectLevel.H 
+                    });
+                    // Populate the details for printing with larger fonts and centered text
+                    printDetailsContainer.innerHTML = `
+                        <p style="font-weight: bold; font-size: 17pt; margin: 0; line-height: 1.2; text-align: center;">${name}</p>
+                        <p style="font-weight: bold; font-size: 11pt; margin: 0; line-height: 1.2; text-align: center;">${company}</p>
+                        <p style="font-weight: bold; font-size: 17pt; margin: 0; line-height: 1.2; text-align: center;">${designation}</p>
+                    `;
+                    
+                    // Add text overlay to QR code after it's generated
+                    setTimeout(() => {
+                        const qrImg = printQRCodeContainer.querySelector('img');
+                        if (qrImg) {
+                            const canvas = document.createElement('canvas');
+                            // Updated size
+                            const size = 114; 
+                            canvas.width = size;
+                            canvas.height = size;
+                            const ctx = canvas.getContext('2d');
+                            const img = new Image();
+                            img.src = qrImg.src;
+                            img.onload = function () {
+                                // Draw QR Code
+                                ctx.drawImage(img, 0, 0);
+
+                                // Prepare text
+                                const centerX = canvas.width / 2;
+                                const centerY = canvas.height / 2;
+                                const text = "AKITDA";
+                                // Updated font size
+                                ctx.font = 'bold 18px Inter, sans-serif'; 
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                const textMetrics = ctx.measureText(text);
+
+                                // Draw background rect for text (scaled down)
+                                ctx.fillStyle = 'black';
+                                ctx.fillRect(centerX - textMetrics.width / 2 - 4, centerY - 18 / 2 - 2, textMetrics.width + 8, 18 + 4);
+                                
+                                // Draw text
+                                ctx.fillStyle = 'white';
+                                ctx.fillText(text, centerX, centerY);
+                                
+                                // Draw border around the QR Code (scaled down)
+                                ctx.strokeStyle = 'black';
+                                ctx.lineWidth = 2; // Made the border thinner
+                                ctx.strokeRect(1, 1, size - 2, size - 2); // Adjusted for thinner line
+
+                                // Replace original QR image with this new canvas
+                                printQRCodeContainer.innerHTML = ''; 
+                                printQRCodeContainer.appendChild(canvas);
+                                
+                                // Now, trigger print
+                                statusMessage.textContent = 'Printing badge for ' + name;
+                                window.print();
+                                resetScanner();
+                            }
+                        } else {
+                            // Fallback if image isn't ready
+                            statusMessage.textContent = 'Printing badge for ' + name;
+                            window.print();
+                            resetScanner();
+                        }
+                    }, 100); // Wait for QR code image to render
+
+                } catch (error) {
+                    console.error("Failed to parse code:", error);
+                    statusMessage.textContent = "Error: Invalid code format. Please try again.";
+                    setTimeout(resetScanner, 2000);
+                }
+            }
+
+            function resetScanner() {
+                scannerInput.value = ''; // Clear the input
+                scannerInput.focus(); // Set focus back to the input
+                statusMessage.textContent = 'Waiting for scan...';
+            }
+
+            // Initially focus the input
+            scannerInput.focus();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
