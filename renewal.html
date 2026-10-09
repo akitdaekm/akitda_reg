@@ -98,8 +98,8 @@
                     <button id="confirm-payment-btn" onclick="confirmPayment()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
                         ✅ Confirm Renewal
                     </button>
-                    <button onclick="cancelPayment()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 px-4 rounded-xl text-sm">
-                        Back
+                    <button type="button" onclick="handleRenewalCancel()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold py-2.5 px-4 rounded-xl text-sm border border-rose-300">
+                        ❌ Payment Cancelled
                     </button>
                 </div>
             </div>
@@ -114,6 +114,23 @@
                 <button onclick="resetRenewal()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-xl shadow transition text-sm">
                     Submit Another Renewal
                 </button>
+            </div>
+
+            <!-- Step 4: Cancelled View -->
+            <div id="cancelled-view" class="hidden text-center space-y-4">
+                <div class="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800">
+                    <div class="text-3xl mb-1">❌</div>
+                    <h2 class="text-xl font-bold">Payment Cancelled</h2>
+                    <p class="text-xs text-rose-700 mt-1">Payment was cancelled in UPI (Google Pay / PhonePe). Your membership renewal has <b>not</b> been recorded and no receipt was issued.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="retryPayment()" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition text-sm">
+                        🔄 Retry Payment
+                    </button>
+                    <button onclick="cancelPayment()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 px-4 rounded-xl text-sm">
+                        Back to Form
+                    </button>
+                </div>
             </div>
 
         </main>
@@ -219,8 +236,19 @@
             document.getElementById('renewal-form').reset();
             document.getElementById('memberSearch').value = '';
             document.getElementById('upi-ref').value = '';
+            document.getElementById('cancelled-view').classList.add('hidden');
             document.getElementById('success-view').classList.add('hidden');
             document.getElementById('form-view').classList.remove('hidden');
+        }
+
+        function handleRenewalCancel() {
+            document.getElementById('payment-view').classList.add('hidden');
+            document.getElementById('cancelled-view').classList.remove('hidden');
+        }
+
+        function retryPayment() {
+            document.getElementById('cancelled-view').classList.add('hidden');
+            document.getElementById('payment-view').classList.remove('hidden');
         }
     </script>
 </body>

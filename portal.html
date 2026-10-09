@@ -585,10 +585,10 @@
                                 </div>
                             </div>
 
-                            <!-- Live Approval & Auto-Capture Status -->
+                            <!-- Live Approval Status -->
                             <div id="collectApprovalStatus" class="p-3 bg-amber-950/50 border border-amber-500/40 rounded-xl flex items-center justify-center gap-2.5 text-xs text-amber-300">
                                 <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-                                <span>Waiting for member to approve request in UPI app...</span>
+                                <span>Payment request sent. Awaiting authorization in Google Pay / PhonePe...</span>
                             </div>
 
                             <!-- 1-Tap Trigger for Mobile Device -->
@@ -596,6 +596,16 @@
                                 <span>📱</span>
                                 <span>Open Directly in UPI App (GPay / PhonePe)</span>
                             </button>
+
+                            <!-- Explicit confirmation and cancellation buttons -->
+                            <div class="pt-2 flex gap-2">
+                                <button type="button" onclick="confirmRenewalPayment(false)" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                                    <span>✅ Payment Completed</span>
+                                </button>
+                                <button type="button" onclick="handlePaymentCancelled('Payment request was cancelled or declined in UPI app')" class="flex-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5">
+                                    <span>❌ Payment Cancelled</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -629,18 +639,54 @@
                             <span>Pay Directly on Mobile UPI App</span>
                         </button>
 
-                        <!-- Auto-detecting overlay when user clicks mobile app -->
-                        <div id="mobileAppWaitingBox" class="hidden p-4 bg-blue-950/60 border border-blue-500/40 rounded-2xl text-center space-y-1">
+                        <!-- Mobile return check prompt (shown when member switches back from GPay / PhonePe) -->
+                        <div id="upiReturnPromptBox" class="hidden p-4 bg-slate-900 border-2 border-amber-500/60 rounded-2xl text-center space-y-3 shadow-xl">
+                            <div class="text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5">
+                                <span class="text-base">🔔</span>
+                                <span>Did you complete payment in Google Pay / PhonePe?</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300">
+                                If your payment of ₹1,416 was completed, confirm below. If you cancelled the payment in UPI, click Cancelled.
+                            </p>
+                            <div class="flex gap-2">
+                                <button type="button" onclick="confirmRenewalPayment(false)" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition">
+                                    ✅ Yes, Payment Done
+                                </button>
+                                <button type="button" onclick="handlePaymentCancelled('Payment was cancelled in UPI app (Google Pay / PhonePe)')" class="flex-1 bg-rose-700 hover:bg-rose-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition">
+                                    ❌ No, Cancelled
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Confirmation & Reference Box -->
+                        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5 text-left">
+                            <label class="block text-xs font-bold text-slate-200">
+                                UPI Reference / UTR Number <span class="text-slate-500 font-normal">(Optional, from GPay / PhonePe)</span>
+                            </label>
+                            <input type="text" id="renUpiRef" placeholder="e.g. 428109823412 or leave blank" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <div class="flex gap-2 pt-1">
+                                <button type="button" onclick="confirmRenewalPayment(false)" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                                    <span>✅</span>
+                                    <span>Confirm Renewal & Get Receipt</span>
+                                </button>
+                                <button type="button" onclick="handlePaymentCancelled('Payment marked as cancelled by member')" class="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold py-2.5 px-3 rounded-xl text-xs transition">
+                                    <span>❌ Cancelled</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Waiting overlay when user clicks mobile app -->
+                        <div id="mobileAppWaitingBox" class="hidden p-4 bg-blue-950/60 border border-blue-500/40 rounded-2xl text-center space-y-2">
                             <div class="flex items-center justify-center gap-2 text-cyan-400 font-bold text-xs">
                                 <span class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span>
-                                <span>UPI App Opened • Auto-Confirm Active</span>
+                                <span>UPI App Opened</span>
                             </div>
-                            <p class="text-[11px] text-slate-400">Complete payment in GPay / PhonePe / Paytm. Returning to this page confirms renewal automatically!</p>
+                            <p class="text-[11px] text-slate-400">Complete payment in GPay / PhonePe / Paytm and return here to confirm.</p>
+                            <button type="button" onclick="handlePaymentCancelled('Payment cancelled by member in UPI app')" class="text-[11px] text-rose-400 hover:text-rose-300 underline font-semibold">
+                                Cancel Payment
+                            </button>
                         </div>
                     </div>
-
-                    <!-- Hidden UPI reference container for automated payment capture -->
-                    <input type="hidden" id="renUpiRef" value="">
 
                     <div class="pt-2">
                         <button type="button" onclick="cancelRenewalPayment()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs border border-slate-700 transition">
@@ -722,6 +768,72 @@
                         </button>
                         <button onclick="resetRenewalForm()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold py-2.5 px-4 rounded-xl text-xs sm:text-sm border border-slate-700">
                             ➕ Submit Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Official Renewal Payment Cancelled Screen -->
+            <div id="renewalCancelledBox" class="hidden text-center space-y-5 max-w-lg mx-auto">
+                <div class="p-6 bg-slate-950/95 border-2 border-rose-500/50 rounded-3xl shadow-2xl text-left relative overflow-hidden">
+                    <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-red-500 to-amber-500"></div>
+
+                    <!-- Card Header -->
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                        <div class="flex items-center space-x-2.5">
+                            <img src="/static/akitda-logo.png" class="h-8 w-auto bg-white/90 p-0.5 rounded" onerror="this.src='akitda-logo.png'">
+                            <div>
+                                <div class="text-xs font-bold text-white uppercase tracking-wider">AKITDA Ernakulam</div>
+                                <div class="text-[10px] text-slate-400">Membership Renewal Verification</div>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-mono font-bold bg-rose-950 text-rose-400 border border-rose-700 px-2 py-0.5 rounded-full">
+                            PAYMENT CANCELLED
+                        </span>
+                    </div>
+
+                    <!-- Cancelled Notice & Icon -->
+                    <div class="py-5 text-center">
+                        <div class="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center mb-3 shadow-lg shadow-rose-500/20 text-2xl font-bold">
+                            ✕
+                        </div>
+                        <h3 class="text-xl font-extrabold text-white">Payment Was Cancelled</h3>
+                        <p class="text-xs text-rose-300/90 mt-1">
+                            The UPI payment of <b class="text-white">₹1,416.00</b> was cancelled or not completed in Google Pay / PhonePe.
+                        </p>
+                    </div>
+
+                    <!-- Status Details Box -->
+                    <div class="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 space-y-2 text-xs">
+                        <div class="flex justify-between py-1 border-b border-slate-800/80">
+                            <span class="text-slate-400">Member Name:</span>
+                            <span id="cancelMemberName" class="font-bold text-white">Member Name</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-800/80">
+                            <span class="text-slate-400">Firm / Company:</span>
+                            <span id="cancelCompanyName" class="font-bold text-slate-200">Company Name</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-800/80">
+                            <span class="text-slate-400">Payment Status:</span>
+                            <span class="font-bold text-rose-400">Cancelled / Incomplete</span>
+                        </div>
+                        <div class="flex justify-between py-1 border-b border-slate-800/80">
+                            <span class="text-slate-400">Renewal Status:</span>
+                            <span class="font-bold text-amber-400">NOT PROCESSED (No Receipt Issued)</span>
+                        </div>
+                        <div class="pt-2 text-[11px] text-slate-400 leading-relaxed">
+                            ⚠️ <i>Your annual subscription has not been recorded. If the amount was debited from your bank account by mistake, please note down the UPI UTR number and contact AKITDA Ernakulam office.</i>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="space-y-2 pt-2">
+                        <button type="button" onclick="retryRenewalPayment()" class="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-slate-950 font-black py-3 px-4 rounded-xl shadow-lg transition text-xs flex items-center justify-center gap-2">
+                            <span>🔄</span>
+                            <span>Retry Payment via UPI / QR</span>
+                        </button>
+                        <button type="button" onclick="cancelRenewalPayment()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 px-4 rounded-xl text-xs border border-slate-700 transition">
+                            ← Back to Member Details
                         </button>
                     </div>
                 </div>
@@ -3080,20 +3192,9 @@
 
             const approvalStatusEl = document.getElementById('collectApprovalStatus');
             if (approvalStatusEl) {
-                approvalStatusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span> <span>Waiting for member to approve request in UPI app...</span>`;
+                approvalStatusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span> <span>Payment request dispatched. Awaiting member approval in Google Pay / PhonePe...</span>`;
                 approvalStatusEl.className = "p-3 bg-amber-950/50 border border-amber-500/40 rounded-xl flex items-center justify-center gap-2.5 text-xs text-amber-300";
             }
-
-            if (window.collectApprovalTimer) clearTimeout(window.collectApprovalTimer);
-            window.collectApprovalTimer = setTimeout(() => {
-                if (approvalStatusEl && !document.getElementById('renewalPaymentBox').classList.contains('hidden')) {
-                    approvalStatusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> <span>✅ Payment approved by member! Auto-confirming renewal...</span>`;
-                    approvalStatusEl.className = "p-3 bg-emerald-950/80 border border-emerald-500/60 rounded-xl flex items-center justify-center gap-2.5 text-xs text-emerald-300";
-                    setTimeout(() => {
-                        confirmRenewalPayment(true);
-                    }, 1200);
-                }
-            }, 4500);
         }
 
         function proceedToRenewalPayment() {
@@ -3147,6 +3248,7 @@
         function cancelRenewalPayment() {
             if (window.collectApprovalTimer) clearTimeout(window.collectApprovalTimer);
             isWaitingForUpiReturn = false;
+            document.getElementById('renewalCancelledBox').classList.add('hidden');
             document.getElementById('renewalPaymentBox').classList.add('hidden');
             document.getElementById('renewalFormBox').classList.remove('hidden');
         }
@@ -3275,16 +3377,23 @@
             }
         }
 
-        // Automatically detect return from UPI App
+        // When returning from UPI App, ask user to confirm or report cancellation
         function checkUpiAutoReturn() {
             if (isWaitingForUpiReturn && !document.getElementById('renewalPaymentBox').classList.contains('hidden')) {
                 isWaitingForUpiReturn = false;
-                document.getElementById('upiLiveStatusBanner').className = "p-3 bg-emerald-950/80 border border-emerald-500/60 rounded-2xl flex items-center justify-center gap-2 text-xs text-emerald-300";
-                document.getElementById('upiLiveStatusText').innerHTML = "✅ <b>Return Detected!</b> Auto-capturing payment & confirming renewal...";
+                const banner = document.getElementById('upiLiveStatusBanner');
+                if (banner) {
+                    banner.className = "p-3 bg-amber-950/60 border border-amber-500/50 rounded-2xl flex items-center justify-center gap-2 text-xs text-amber-300";
+                    document.getElementById('upiLiveStatusText').innerHTML = "🔔 <b>Returned from UPI App!</b> Please confirm your payment status below:";
+                }
                 
-                setTimeout(() => {
-                    confirmRenewalPayment(true);
-                }, 1000);
+                const promptBox = document.getElementById('upiReturnPromptBox');
+                if (promptBox) {
+                    promptBox.classList.remove('hidden');
+                    promptBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                const waitBox = document.getElementById('mobileAppWaitingBox');
+                if (waitBox) waitBox.classList.add('hidden');
             }
         }
 
@@ -3294,6 +3403,43 @@
                 checkUpiAutoReturn();
             }
         });
+
+        // Intimate Member Cancelled Message and update UI
+        function handlePaymentCancelled(reason = 'Payment was cancelled in UPI') {
+            if (window.collectApprovalTimer) clearTimeout(window.collectApprovalTimer);
+            isWaitingForUpiReturn = false;
+
+            const name = document.getElementById('renMemberName').value.trim() || 'Member';
+            const company = document.getElementById('renCompany').value.trim() || 'Company';
+
+            const cName = document.getElementById('cancelMemberName');
+            if (cName) cName.textContent = name;
+            const cComp = document.getElementById('cancelCompanyName');
+            if (cComp) cComp.textContent = company;
+
+            document.getElementById('renewalFormBox').classList.add('hidden');
+            document.getElementById('renewalPaymentBox').classList.add('hidden');
+            document.getElementById('renewalSuccessBox').classList.add('hidden');
+            document.getElementById('renewalCancelledBox').classList.remove('hidden');
+
+            playChime(true); // Warning chime
+            showShareToast('❌ Renewal payment was cancelled in UPI.');
+        }
+
+        function retryRenewalPayment() {
+            document.getElementById('renewalCancelledBox').classList.add('hidden');
+            document.getElementById('renewalSuccessBox').classList.add('hidden');
+            document.getElementById('renewalPaymentBox').classList.remove('hidden');
+            const promptBox = document.getElementById('upiReturnPromptBox');
+            if (promptBox) promptBox.classList.add('hidden');
+            const waitBox = document.getElementById('mobileAppWaitingBox');
+            if (waitBox) waitBox.classList.add('hidden');
+            const banner = document.getElementById('upiLiveStatusBanner');
+            if (banner) {
+                banner.className = "p-3 bg-amber-950/40 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 text-xs text-amber-300";
+                document.getElementById('upiLiveStatusText').textContent = "Awaiting UPI payment... Scan QR or tap Mobile Pay";
+            }
+        }
 
         async function confirmRenewalPayment(isAutomated = false) {
             const name = document.getElementById('renMemberName').value.trim();
@@ -3306,10 +3452,10 @@
                 return;
             }
 
-            // Auto-generate legitimate UPI transaction reference if not entered
+            // Generate UPI reference if member left UTR blank
             if (!upiRef) {
                 const randomDigits = Math.floor(100000000000 + Math.random() * 900000000000);
-                upiRef = isAutomated ? `UPI/APP/${randomDigits.toString().slice(-8)}` : `UPI/${randomDigits}`;
+                upiRef = `UPI/${randomDigits.toString().slice(-8)}`;
             }
 
             try {
@@ -3429,6 +3575,7 @@
             isWaitingForUpiReturn = false;
             lastRenewalData = null;
 
+            document.getElementById('renewalCancelledBox').classList.add('hidden');
             document.getElementById('renewalSuccessBox').classList.add('hidden');
             document.getElementById('renewalPaymentBox').classList.add('hidden');
             document.getElementById('renewalFormBox').classList.remove('hidden');
